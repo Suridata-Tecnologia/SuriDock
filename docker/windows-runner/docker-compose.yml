@@ -19,3 +19,4 @@ services:
       - "3389:3389"
     volumes:
       - ./data:/storage
+      - ./shared:/shared
