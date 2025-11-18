@@ -1,0 +1,20 @@
+services:
+  windows:
+    image: dockurr/windows
+    container_name: windows-qlik-runner
+    environment:
+      VERSION: "win11"
+      RAM: "4G"
+      CORES: "4"
+      DISK_SIZE: "40G"
+      USERNAME: "admin"
+      PASSWORD: "Admin123!"
+    devices:
+      - /dev/kvm
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "8006:8006"   # acesso web via noVNC
+      - "3389:3389"   # RDP
+    volumes:
+      - ./shared:/shared
