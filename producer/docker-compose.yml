@@ -1,10 +1,10 @@
 services:
-  publisher:
+  producer:
     build: .
-    container_name: publisher
+    container_name: producer
     restart: always
     working_dir: /suridata_scripts
-    command: ["python", "publisher.py"]
+    command: ["python", "index.py"]
     volumes:
       - ./scripts:/suridata_scripts
     extra_hosts:
