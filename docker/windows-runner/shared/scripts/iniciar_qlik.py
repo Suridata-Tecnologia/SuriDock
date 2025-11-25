@@ -13,14 +13,16 @@ app = Application(backend="uia").start(str(qlik_path))
 
 qlik_window = None
 window_list = []
-for w in find_windows(backend='uia'):
-    try:
-        window_list.append(app.window(handle=w).window_text())
-        if 'qlik sense desktop' in app.window(handle=w).window_text().lower():
-            qlik_window = w
-            break
-    except Exception as error:
-        logger.error(f'Erro ao acessar a janela com handle {w}: {error}')
+while not qlik_window:
+    for w in find_windows(backend='uia'):
+        try:
+            window_list.append(app.window(handle=w).window_text())
+            if 'qlik sense desktop' in app.window(handle=w).window_text().lower():
+                qlik_window = w
+                break
+        except Exception as error:
+            logger.error(f'Erro ao acessar a janela com handle {w}: {error}')
+    sleep(15)
 
 
 if qlik_window:
