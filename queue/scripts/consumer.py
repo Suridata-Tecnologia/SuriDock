@@ -3,8 +3,8 @@ import pika
 
 
 credentials = pika.PlainCredentials(
-    username='admin',
-    password='Suri123!'
+    username='???',
+    password='???'
 )
 
 connection = pika.BlockingConnection(

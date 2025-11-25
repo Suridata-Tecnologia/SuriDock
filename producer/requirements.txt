@@ -1,2 +1,5 @@
+requests
+discord
+asyncio
 loguru
 pika

@@ -5,6 +5,8 @@ services:
     restart: always
     working_dir: /suridata_scripts
     command: ["python", "index.py"]
+    env_file:
+      - ./scripts/.env
     volumes:
       - ./scripts:/suridata_scripts
     extra_hosts:

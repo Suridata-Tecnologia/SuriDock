@@ -3,12 +3,14 @@ services:
     image: rabbitmq:3.13-management
     container_name: rabbitmq
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "5672:5672"     # Porta de comunicação AMQP
       - "15672:15672"   # Dashboard de administração
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: Suri123!
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_USERNAME}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD}"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 

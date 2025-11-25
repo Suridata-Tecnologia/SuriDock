@@ -9,7 +9,7 @@ credentials = pika.PlainCredentials(
 
 connection = pika.BlockingConnection(
     pika.ConnectionParameters(
-        host='host.docker.internal',
+        host='localhost',
         port=5672,
         credentials=credentials,
         heartbeat=600,
@@ -20,13 +20,13 @@ connection = pika.BlockingConnection(
 
 channel = connection.channel()
 
-channel.queue_declare(queue='teste', durable=True)
+channel.queue_declare(queue='discord_messages', durable=True)
 
 
 channel.basic_publish(
     exchange='',
-    routing_key='teste',
-    body='Teste Docker!'
+    routing_key='discord_messages',
+    body='Ping!'
 )
 
 logger.info(" [x] Sent 'Hello World!'")
