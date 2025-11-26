@@ -1,0 +1,5 @@
+python-dotenv
+pywinauto
+pyfiglet
+loguru
+pika
