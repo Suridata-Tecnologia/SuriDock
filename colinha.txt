@@ -1,0 +1,62 @@
+0
+type_proccess
+é o tipo de processo
+usado para saber qual processo o bot precisa rodar
+
+1
+created_at
+Data e Horario que a mensagem foi adicionada na fila
+usado para calcular quanto tempo demorou para o processo ficar pronto
+
+2
+company_name
+nome da empresa
+usado para saber qual pasta do drive o bot vai fazer alterações
+
+3
+discord_user_id
+ID do usuário no discord de quem pediu o processo
+usado para saber quem pediu o comando e para responder o usuário
+
+4
+discord_message_id
+ID da mensagem do discord enviada pelo bot
+usado para modificar as mensagens e informar o usuário sobre o que o bot esta fazendo
+
+5
+trello_card_id
+ID do card no trello
+usado para mover e comentar os cards do trello
+
+6
+activity
+atividade
+usado para alterar a linha 14 do script do qlik
+
+7
+monthAnalysis
+Mês de analise
+O período que o usuário solicitou para analisar ao rodar o qlik
+
+8
+audith
+Auditoria
+Um booleano que diz se o usuário quer rodar a empresa com auditoria
+
+9
+narrative
+História do qlik
+usado para selecionar se vai gerar relatório em português, inglês ou pós pagamento
+
+10
+user_email
+Email do usuário
+usado para enviar emails a partir do usuário
+
+11
+mail_list
+lista de emails
+essa é a lista dos destinatários que receberão os emails
+
+template
+type_proccess ## created_at ## company_name ## discord_user_id ## discord_message_id ## trello_card_id ## activity ## monthAnalysis ## audith ## narrative ## user_email ## mail_list

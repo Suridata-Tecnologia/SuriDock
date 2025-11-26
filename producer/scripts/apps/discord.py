@@ -1,5 +1,10 @@
-from loguru import logger
-from time   import sleep
+
+# from common                         import get_folders_drive_by_id
+from extensions.relatorio_ppt       import RelatorioPPT
+from discord                        import app_commands
+from discord.ext                    import commands
+from loguru                         import logger
+from time                           import sleep
 
 import threading
 import requests
@@ -10,31 +15,32 @@ import os
 
 
 
-# salva os logs
-logger.add('logs/script.log')
+# folders = get_folders_drive_by_id('1_doPhMfSV216okC36vs-D62enjmMCt4t')
 
 
 class DiscordBot:
     def __init__(self):
         # Carrega variáveis de ambiente
         self.discord_id_channel_bots    = int(os.getenv("DISCORD_ID_CHANNEL_BOTS"))
-        self.discord_token              = os.getenv("DISCORD_TOKEN")
-        self.discord_webhook            = os.getenv("DISCORD_WEBHOOK")
-        self.rabbitmq_host              = os.getenv("RABBITMQ_HOST")
-        self.rabbitmq_queue             = os.getenv("RABBITMQ_QUEUE")
         self.rabbitmq_username          = os.getenv("RABBITMQ_USERNAME")
         self.rabbitmq_password          = os.getenv("RABBITMQ_PASSWORD")
+        self.rabbitmq_messages          = os.getenv("RABBITMQ_MESSAGES")
+        self.discord_webhook            = os.getenv("DISCORD_WEBHOOK")
+        self.discord_token              = os.getenv("DISCORD_TOKEN")
+        self.rabbitmq_host              = os.getenv("RABBITMQ_HOST")
 
         # Discord
         intents = discord.Intents.default()
         intents.messages = True
-        self.client = discord.Client(intents=intents)
+        self.client = commands.Bot(command_prefix=None, intents=intents)
+        self.tree = self.client.tree
 
         # Evento assíncrono para aguardar o Discord iniciar antes de enviar mensagens
         self.discord_ready_event = asyncio.Event()
 
         # Registro de event handlers
         self._register_handlers()
+        self._register_commands()
 
 
     # ----------------------------------------------------------
@@ -44,7 +50,50 @@ class DiscordBot:
         @self.client.event
         async def on_ready():
             logger.info(f"Bot conectado como {self.client.user}")
+
+            # Sincronizar slash commands com o Discord
+            try:
+                synced = await self.tree.sync()
+                logger.info(f"Slash commands sincronizados: {[cmd.name for cmd in synced]}")
+            except Exception as e:
+                logger.error(f"Erro ao sincronizar slash commands: {e}")
+
             self.discord_ready_event.set()
+
+
+    # ----------------------------------------------------------
+    # Slash commands do Discord
+    # ----------------------------------------------------------
+    def _register_commands(self):
+        @self.tree.command(name="ping", description="Retorna uma resposta de teste.")
+        async def ping(interaction: discord.Interaction):
+            await interaction.response.defer()
+            message = await interaction.followup.send(f'{interaction.user.mention} Processando sua solicitação...', ephemeral=False)
+            await interaction.followup.edit_message(message_id=message.id, content=f'{interaction.user.mention} Pong!')
+
+
+        @self.tree.command(name="relatorioppt", description="Gera o relatório pelo qlik")
+        @app_commands.describe(empresa='Digite o nome da pasta em _QVD para criar o relatório', ingles='Escolha True se quiser o relatório em inglês', mes_analise='Escolha o período para analisar')
+        async def relatorioppt(interaction: discord.Interaction, empresa: str, ingles: bool = False, mes_analise: str = 'não', auditoria: bool = False):
+            await interaction.response.defer()
+            message = await interaction.followup.send(f'{interaction.user.mention} Processando sua solicitação...', ephemeral=False)
+            
+            if ingles:
+                answer_english = RelatorioPPT(interaction.user.id, message.id, empresa, True, mes_analise, auditoria).run()
+                answer_portuguese = RelatorioPPT(interaction.user.id, message.id, empresa, False, mes_analise, auditoria, queue_number).run()
+
+                if not 'já esta na fila' in answer_english.lower() and not 'já esta na fila' in answer_portuguese.lower():
+                    answer_to_user = f'suas solicitações para gerar os relatórios em inglês e português da empresa {empresa.upper()} foram adicionadas na fila'
+                elif not 'já esta na fila' in answer_english.lower():
+                    answer_to_user = answer_english
+                elif not 'já esta na fila' in answer_portuguese.lower():
+                    answer_to_user = answer_portuguese
+                else:
+                    answer_to_user = f'os relatórios em inglês e português da empresa {empresa.upper()} já estão na fila ✋'
+            else:
+                answer_to_user = RelatorioPPT(interaction.user.id, message.id, empresa, False, mes_analise, auditoria).run()
+
+            await interaction.followup.edit_message(message_id=message.id, content=f'{interaction.user.mention} {answer_to_user}')
 
 
     # ----------------------------------------------------------
@@ -99,11 +148,11 @@ class DiscordBot:
                 )
                 channel = connection.channel()
 
-                channel.queue_declare(queue=self.rabbitmq_queue, durable=True)
-                logger.info(f"Conectado. Consumindo fila '{self.rabbitmq_queue}'.")
+                channel.queue_declare(queue=self.rabbitmq_messages, durable=True)
+                logger.info(f"Conectado. Consumindo fila '{self.rabbitmq_messages}'.")
 
                 for method, properties, body in channel.consume(
-                    self.rabbitmq_queue, inactivity_timeout=1
+                    self.rabbitmq_messages, inactivity_timeout=1
                 ):
                     if body is None:
                         continue
