@@ -6,8 +6,9 @@ class StartProcess():
     def __transform_body(self):
         itens_list = self.body_message.split(' ## ')
 
+        import ipdb; ipdb.set_trace()
         self.type_proccess = itens_list[0]
-        
+
 
     def run(self):
         self.__transform_body()

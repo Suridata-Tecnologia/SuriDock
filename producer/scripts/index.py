@@ -6,4 +6,3 @@ from loguru         import logger
 logger.add('logs/script.log')
 
 DiscordBot().run()
-print('print que nunca será printado')

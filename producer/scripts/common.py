@@ -115,7 +115,6 @@ class Producer():
             activity=None,
             monthAnalysis=None,
             audith=None,
-            app_name=None,
             narrative=None,
             user_email=None,
             mail_list=None
@@ -131,7 +130,6 @@ class Producer():
         self.narrative          = str(narrative)
         self.mail_list          = str(mail_list)
         self.activity           = str(activity)
-        self.app_name           = str(app_name)
         self.audith             = str(audith)
 
 
@@ -158,7 +156,7 @@ class Producer():
         channel.basic_publish(
             exchange='',
             routing_key=suridata_queue,
-            body=f'{self.type_proccess} ## {self.created_at} ## {self.company_name} ## {self.discord_user_id} ## {self.discord_message_id} ## {self.trello_card_id} ## {self.activity} ## {self.monthAnalysis} ## {self.audith} ## {self.app_name} ## {self.narrative} ## {self.user_email} ## {self.mail_list}'
+            body=f'{self.type_proccess} ## {self.created_at} ## {self.company_name} ## {self.discord_user_id} ## {self.discord_message_id} ## {self.trello_card_id} ## {self.activity} ## {self.monthAnalysis} ## {self.audith} ## {self.narrative} ## {self.user_email} ## {self.mail_list}'
         )
         connection.close()
         logger.info('Fechando conexão com o RabbitMQ')
