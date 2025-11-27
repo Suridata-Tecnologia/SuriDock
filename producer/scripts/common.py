@@ -1,5 +1,6 @@
 from google.oauth2.service_account  import Credentials
 from datetime                       import datetime
+from zoneinfo                       import ZoneInfo
 from loguru                         import logger
 from googleapiclient.discovery      import build
 
@@ -14,6 +15,8 @@ rabbitmq_password   = os.getenv("RABBITMQ_PASSWORD")
 drive_id_qvd        = os.getenv("DRIVE_ID_QVD")
 host_rabbitmq       = os.getenv('RABBITMQ_HOST')
 suridata_queue      = os.getenv('RABBITMQ_QUEUE')
+
+fuso_brasilia = ZoneInfo("America/Sao_Paulo")
 
 
 
@@ -167,4 +170,4 @@ class Producer():
 
 
 def get_formated_time_now():
-        return datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+        return datetime.now(fuso_brasilia).strftime('%d/%m/%Y %H:%M:%S')

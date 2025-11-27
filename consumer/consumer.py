@@ -61,10 +61,6 @@ def get_retry_message(headers):
     return retry_count
 
 
-def transform_rabbitmq_message():
-    pass
-
-
 def callback(ch, method, properties, body):
     headers = properties.headers or {}
     retry_count = get_retry_message(headers)
@@ -84,4 +80,5 @@ def start_consumer():
         on_message_callback=callback
     )
 
+    logger.info('Pronto para receber mensagens!')
     channel.start_consuming()
