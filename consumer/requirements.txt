@@ -1,5 +1,8 @@
+chromedriver-autoinstaller
+mysql-connector
 python-dotenv
 pywinauto
 pyfiglet
+selenium
 loguru
 pika

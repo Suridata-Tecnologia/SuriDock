@@ -34,7 +34,7 @@ atividade
 usado para alterar a linha 14 do script do qlik
 
 7
-monthAnalysis
+month_analysis
 Mês de analise
 O período que o usuário solicitou para analisar ao rodar o qlik
 

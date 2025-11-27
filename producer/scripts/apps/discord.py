@@ -80,7 +80,7 @@ class DiscordBot:
             
             if ingles:
                 answer_english = RelatorioPPT(interaction.user.id, message.id, empresa, True, mes_analise, auditoria).run()
-                answer_portuguese = RelatorioPPT(interaction.user.id, message.id, empresa, False, mes_analise, auditoria, queue_number).run()
+                answer_portuguese = RelatorioPPT(interaction.user.id, message.id, empresa, False, mes_analise, auditoria).run()
 
                 if not 'já esta na fila' in answer_english.lower() and not 'já esta na fila' in answer_portuguese.lower():
                     answer_to_user = f'suas solicitações para gerar os relatórios em inglês e português da empresa {empresa.upper()} foram adicionadas na fila'

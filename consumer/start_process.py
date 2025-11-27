@@ -1,25 +1,97 @@
+from extensions.relatorio_ppt   import RelatorioPPT
+from common                     import *
+
+
+
 class StartProcess():
-    def __init__(self, retry_count, body_message):
-        self.retry_count = retry_count
-        self.body_message = body_message
+    def __init__(self, agent_number, retry_count, body_message):
+        self.type_proccess  = body_message.split(' ## ')[0]
+        self.body_message   = body_message
+        self.agent_number   = agent_number
+        self.retry_count    = retry_count
+        
+        self.qlik_use = Path('config/qlik_use.txt')
 
-    def __transform_body(self):
-        itens_list = self.body_message.split(' ## ')
+        self.apps = {
+            'relatorioppt': RelatorioPPT,
+        }
 
-        self.type_proccess      = itens_list[0],
-        self.created_at         = itens_list[1],
-        self.company_name       = itens_list[2],
-        self.discord_user_id    = itens_list[3],
-        self.discord_message_id = itens_list[4],
-        self.trello_card_id     = itens_list[5],
-        self.activity           = itens_list[6],
-        self.monthAnalysis      = itens_list[7],
-        self.audith             = itens_list[8],
-        self.narrative          = itens_list[9],
-        self.user_email         = itens_list[10],
-        self.mail_list          = itens_list[11]
+
+    def __need_qlik(self):
+        need_qlik_list = ['relatorioppt']
+        if self.type_proccess in need_qlik_list:
+            return True
+        
+        return False
+    
+
+    def __create_necessary_files(self):
+        folders = [
+            Path(f'downloads/raw_files/agent{self.agent_number}/'),
+            Path(f'downloads/ready_files/agent{self.agent_number}/')
+        ]
+
+        for folder in folders:
+            if not folder.exists():
+                folder.mkdir(parents=True)
+
+        if not self.qlik_use.exists():
+            if not self.qlik_use.parent.exists():
+                self.qlik_use.parent.mkdir(parents=True)
+
+            with open(self.qlik_use, 'w', encoding='utf-8') as f:
+                f.write(f'agent1-stopped ## agent2-stopped ## agent3-stopped ## agent4-stopped')
+
+
+    def __set_state_agent(self, state):
+        with open(self.qlik_use, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        agents = content.split(' ## ')
+        agents[self.agent_number-1] = f'agent{self.agent_number}-{state}'
+
+        new_content = ''
+        for agent in agents:
+            new_content += f'{agent} ## '
+        new_content = new_content[:-4]
+
+        with open(self.qlik_use, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+
+
+    def __close_qlik(self):
+        with open(self.qlik_use, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        agents = content.split(' ## ')
+
+        for agent in agents:
+            if 'running' in agent:
+                logger.info(f'{agent.split('-')[0]} usando o qlik, portando o agent{self.agent_number} o manterá aberto.')
+                return False
+            
+        logger.info(f'Nenhum agente usando o qlik, agent{self.agent_number} fechando qlik...')
+        close_all_qlik_process()
+
+        return True
 
 
     def run(self):
-        self.__transform_body()
-        import ipdb; ipdb.set_trace()
+        self.__create_necessary_files()
+        if self.__need_qlik():
+            qlik_app = is_qlik_running()
+            if not qlik_app:
+                qlik_app = open_and_start_qlik(self.agent_number)
+
+            if not qlik_app:
+                logger.error('o Qlik não foi aberto e o processo não pode continuar')
+                return False
+
+            self.__set_state_agent('running')
+
+            self.apps[self.type_proccess](self.agent_number, self.retry_count, self.body_message).run()
+
+            self.__set_state_agent('stopped')
+            self.__close_qlik()
+
+            exit()

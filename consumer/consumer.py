@@ -1,38 +1,11 @@
 from start_process  import StartProcess
-from dotenv         import load_dotenv
+from functools      import partial
 from common         import *
-
-import pika
-import os
 
 
 
 load_dotenv()
-RABBITMQ_HOST       = os.getenv('RABBITMQ_HOST')
-RABBITMQ_USERNAME   = os.getenv('RABBITMQ_USERNAME')
-RABBITMQ_PASSWORD   = os.getenv('RABBITMQ_PASSWORD')
-RABBITMQ_MESSAGES   = os.getenv('RABBITMQ_MESSAGES')
 RABBITMQ_QUEUE      = os.getenv('RABBITMQ_QUEUE')
-
-
-def connection_rabbitmq():
-    credentials = pika.PlainCredentials(
-        username=RABBITMQ_USERNAME,
-        password=RABBITMQ_PASSWORD
-    )
-
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(
-            host=RABBITMQ_HOST,
-            port=5672,
-            credentials=credentials,
-            heartbeat=600,
-            blocked_connection_timeout=600,
-        )
-    )
-
-    channel = connection.channel()
-    return channel
 
 
 def return_message(ch, method, retry_count, headers, body):
@@ -61,10 +34,10 @@ def get_retry_message(headers):
     return retry_count
 
 
-def callback(ch, method, properties, body):
+def callback(ch, method, properties, body, agent_number):
     headers = properties.headers or {}
     retry_count = get_retry_message(headers)
-    success = StartProcess(retry_count, body.decode()).run()
+    success = StartProcess(agent_number, retry_count, body.decode()).run()
 
     if success:
         ch.basic_ack(delivery_tag = method.delivery_tag)
@@ -72,12 +45,16 @@ def callback(ch, method, properties, body):
         return_message(ch, method, retry_count, headers, body)
 
 
-def start_consumer():
-    channel = connection_rabbitmq()
+def start_consumer(agent):
+    channel, connection = connection_rabbitmq()
     channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
+    channel.basic_qos(prefetch_count=1)
+
+    callback_with_args = partial(callback, agent_number=agent)
+
     channel.basic_consume(
         queue=RABBITMQ_QUEUE,
-        on_message_callback=callback
+        on_message_callback=callback_with_args
     )
 
     logger.info('Pronto para receber mensagens!')

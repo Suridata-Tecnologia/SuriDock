@@ -6,4 +6,5 @@ requests
 discord
 asyncio
 loguru
+psutil
 pika

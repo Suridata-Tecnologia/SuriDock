@@ -28,6 +28,14 @@ class RelatorioPPT():
                     audith=self.user_audith,
                     narrative=self.english
                 ).run()
+                
+            if len(self.companies) == 1:
+                if self.english:
+                    self.answer_to_user = f'sua solicitação para gerar o relatório em inglês da empresa {self.companies[0]} foi adicionada na fila'
+                else:
+                    self.answer_to_user = f'sua solicitação para gerar o relatório em português da empresa {self.companies[0]} foi adicionada na fila'
+            else:
+                self.answer_to_user = f'as empresas a seguir foram adicionadas na fila \n{self.companies}'
         else:
             if len(self.companies) == 1:
                 self.answer_to_user = f'não encontrei a empresa {self.companies[0]}\nPor favor verifique se você digitou o nome da pasta em _QVD corretamente'
