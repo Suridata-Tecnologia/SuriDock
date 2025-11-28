@@ -24,6 +24,17 @@ class Database():
             port     = SURIDB_PORT
         )
 
+
+    def find_pretty_name_and_policy(self, drive_folder):
+        data = self.find_all(
+            table_name='companies',
+            left_on='operator_id',
+            condition=f'companies.drive_path = "{drive_folder}"',
+            columns=['companies.dashboard_param', 'companies.policy', 'companies.audit_date', 'companies.suridata_product']
+        )
+
+        return data
+    
     
     def find_all(self, table_name, condition=None, columns=[], related_table=None, left_on='id', right_on='id'):
         if not isinstance(columns, list):

@@ -89,9 +89,11 @@ class StartProcess():
 
             self.__set_state_agent('running')
 
-            self.apps[self.type_proccess](self.agent_number, self.retry_count, self.body_message).run()
+            operation_success = self.apps[self.type_proccess](self.agent_number, self.retry_count, self.body_message).run()
 
             self.__set_state_agent('stopped')
             self.__close_qlik()
 
-            exit()
+            return operation_success
+        
+        return False
