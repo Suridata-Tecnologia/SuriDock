@@ -117,6 +117,7 @@ class Producer():
             password=rabbitmq_password
         )
 
+        logger.info('Abrindo conexão com RabbitMQ')
         self.connection = pika.BlockingConnection(
             pika.ConnectionParameters(
                 host=host_rabbitmq,
@@ -131,12 +132,15 @@ class Producer():
 
     
     def __send_message_rabbitmq(self):
+        logger.info('Postando nova mensagem')
         self.channel.queue_declare(queue=suridata_queue, durable=True)
         self.channel.basic_publish(
             exchange='',
             routing_key=suridata_queue,
             body=json.dumps(self.message_dict).encode('utf-8')
         )
+
+        logger.info('Fechando conexão com RabbitMQ')
         self.connection.close()
 
 
