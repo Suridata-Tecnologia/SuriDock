@@ -20,7 +20,7 @@ class RelatorioPPT():
             for company in companies:
                 message_data = {
                     'type_proccess': 'relatorioppt',
-                    'created_at': get_formated_time_now,
+                    'created_at': get_formated_time_now(),
                     'company_name': company,
                     'discord_user_id': self.user_id,
                     'discord_message_id': self.message_id,
