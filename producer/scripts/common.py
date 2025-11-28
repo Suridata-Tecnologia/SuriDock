@@ -5,6 +5,7 @@ from loguru                         import logger
 from googleapiclient.discovery      import build
 
 import pika
+import json
 import os
 
 
@@ -107,34 +108,8 @@ class SplitCompanies():
 
 
 class Producer():
-    def __init__(
-            self,
-            type_proccess,
-            created_at,
-            company_name,
-            discord_user_id=None,
-            discord_message_id=None,
-            trello_card_id=None,
-            activity=None,
-            monthAnalysis=None,
-            audith=None,
-            narrative=None,
-            user_email=None,
-            mail_list=None
-        ):
-        self.discord_message_id = str(discord_message_id)
-        self.discord_user_id    = str(discord_user_id)
-        self.trello_card_id     = str(trello_card_id)
-        self.type_proccess      = str(type_proccess)
-        self.monthAnalysis      = str(monthAnalysis)
-        self.company_name       = str(company_name)
-        self.created_at         = str(created_at)
-        self.user_email         = str(user_email)
-        self.narrative          = str(narrative)
-        self.mail_list          = str(mail_list)
-        self.activity           = str(activity)
-        self.audith             = str(audith)
-
+    def __init__(self, message_data):
+        self.message_dict = message_data
 
     def __connection_rabbitmq(self):
         credentials = pika.PlainCredentials(
@@ -142,7 +117,7 @@ class Producer():
             password=rabbitmq_password
         )
 
-        connection = pika.BlockingConnection(
+        self.connection = pika.BlockingConnection(
             pika.ConnectionParameters(
                 host=host_rabbitmq,
                 port=5672,
@@ -152,21 +127,22 @@ class Producer():
             )
         )
 
-        logger.info('Abrindo conexão com o RabbitMQ')
-        channel = connection.channel()
-        channel.queue_declare(queue=suridata_queue, durable=True)
-        logger.info('Postando novo conteúdo na fila')
-        channel.basic_publish(
+        self.channel = self.connection.channel()
+
+    
+    def __send_message_rabbitmq(self):
+        self.channel.queue_declare(queue=suridata_queue, durable=True)
+        self.channel.basic_publish(
             exchange='',
             routing_key=suridata_queue,
-            body=f'{self.type_proccess} ## {self.created_at} ## {self.company_name} ## {self.discord_user_id} ## {self.discord_message_id} ## {self.trello_card_id} ## {self.activity} ## {self.monthAnalysis} ## {self.audith} ## {self.narrative} ## {self.user_email} ## {self.mail_list}'
+            body=json.dumps(self.message_dict).encode('utf-8')
         )
-        connection.close()
-        logger.info('Fechando conexão com o RabbitMQ')
+        self.connection.close()
 
 
     def run(self):
         self.__connection_rabbitmq()
+        self.__send_message_rabbitmq()
 
 
 def get_formated_time_now():

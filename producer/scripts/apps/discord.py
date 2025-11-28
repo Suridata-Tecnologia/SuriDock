@@ -11,6 +11,7 @@ import requests
 import asyncio
 import discord
 import pika
+import json
 import os
 
 
@@ -28,6 +29,8 @@ class DiscordBot:
         self.discord_webhook            = os.getenv("DISCORD_WEBHOOK")
         self.discord_token              = os.getenv("DISCORD_TOKEN")
         self.rabbitmq_host              = os.getenv("RABBITMQ_HOST")
+        self.time_to_delete             = 180
+        self.active_embeds              = {}
 
         # Discord
         intents = discord.Intents.default()
@@ -97,17 +100,71 @@ class DiscordBot:
 
 
     # ----------------------------------------------------------
-    # Enviar mensagem para canal
+    # Envia mensagem normal ou embed para o canal de bots
     # ----------------------------------------------------------
     async def send_to_channel(self, message: str):
         await self.discord_ready_event.wait()
+        # Tentando interpretar como JSON
+        try:
+            data = json.loads(message)
+            if "process_id" in data:
+                await self.send_or_update_embed(data)
+                return
+        except Exception:
+            pass
+
+        # Se não for JSON válido envia como texto simples
+        channel = self.client.get_channel(self.discord_id_channel_bots)
+        if channel:
+            await channel.send(message)
+        else:
+            logger.error(f"Canal {self.discord_id_channel_bots} não encontrado.")
+
+
+    # ----------------------------------------------------------
+    # Recebe um dict com dados do processo e cria ou atualiza um embed associado ao process_id.
+    # ----------------------------------------------------------
+    async def send_or_update_embed(self, data: dict):
+        await self.discord_ready_event.wait()
+
+        process_id = data['process_id']
         channel = self.client.get_channel(self.discord_id_channel_bots)
 
-        if channel is None:
-            logger.error(f"Canal {self.discord_id_channel_bots} não encontrado.")
+        if not channel:
+            logger.error('Canal não encontrado.')
             return
 
-        await channel.send(message)
+        # Montando o embed
+        embed = discord.Embed(
+            title=f'Status do Processo {process_id}',
+            color=discord.Color.blue()
+        )
+        embed.add_field(name='Empresa', value=data.get('empresa', '-'), inline=False)
+        embed.add_field(name='Tipo do processo', value=data.get('tipo', '-'), inline=False)
+        embed.add_field(name='Etapa Atual', value=data.get('etapa', '-'), inline=False)
+        embed.add_field(name='Início', value=data.get('inicio', '-'), inline=False)
+
+        embed.set_footer(text='Atualizado automaticamente pelo SuriDock')
+
+        # Caso já exista mensagem deste processo → editar
+        if process_id in self.active_embeds:
+            info = self.active_embeds[process_id]
+            try:
+                msg = await channel.fetch_message(info['message_id'])
+                await msg.edit(embed=embed)
+                logger.info(f'Embed do processo {process_id} atualizado.')
+                return
+            except Exception as e:
+                logger.error(f'Erro ao editar embed existente: {e}')
+
+        # Caso seja um processo novo → enviar nova mensagem
+        message = await channel.send(embed=embed)
+        self.active_embeds[process_id] = {
+            'message_id': message.id,
+            'channel_id': channel.id
+        }
+
+        logger.info(f'Novo embed criado para processo {process_id}.')
 
 
     # ----------------------------------------------------------

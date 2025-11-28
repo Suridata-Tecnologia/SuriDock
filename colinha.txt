@@ -59,4 +59,4 @@ lista de emails
 essa é a lista dos destinatários que receberão os emails
 
 template
-type_proccess ## created_at ## company_name ## discord_user_id ## discord_message_id ## trello_card_id ## activity ## monthAnalysis ## audith ## narrative ## user_email ## mail_list
+type_proccess ## created_at ## company_name ## discord_user_id ## discord_message_id ## trello_card_id ## activity ## month_analysis ## audith ## narrative ## user_email ## mail_list

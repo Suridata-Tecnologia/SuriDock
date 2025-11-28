@@ -4,11 +4,11 @@ from common import *
 
 
 class RelatorioPPT():
-    def __init__(self, discord_user_id, discord_message_id, companies, english, monthAnalysis, user_audith):
+    def __init__(self, discord_user_id, discord_message_id, companies, english, month_analysis, user_audith):
         self.companies      = SplitCompanies(companies).run()
         self.message_id     = discord_message_id
         self.user_id        = discord_user_id
-        self.monthAnalysis  = monthAnalysis
+        self.month_analysis = month_analysis
         self.user_audith    = user_audith
         self.english        = english
 
@@ -18,16 +18,21 @@ class RelatorioPPT():
 
         if companies:
             for company in companies:
-                Producer(
-                    type_proccess='relatorioppt',
-                    created_at=get_formated_time_now(),
-                    company_name=company,
-                    discord_user_id=self.user_id,
-                    discord_message_id=self.message_id,
-                    monthAnalysis=self.monthAnalysis,
-                    audith=self.user_audith,
-                    narrative=self.english
-                ).run()
+                message_data = {
+                    'type_proccess': 'relatorioppt',
+                    'created_at': get_formated_time_now,
+                    'company_name': company,
+                    'discord_user_id': self.user_id,
+                    'discord_message_id': self.message_id,
+                    'trello_card_id': None,
+                    'activity': None,
+                    'month_analysis': self.month_analysis,
+                    'audith': self.user_audith,
+                    'narrative': self.english,
+                    'user_email': None,
+                    'mail_list': None
+                }
+                Producer(message_data).run()
                 
             if len(self.companies) == 1:
                 if self.english:

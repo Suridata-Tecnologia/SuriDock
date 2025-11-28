@@ -1,7 +1,11 @@
 from dotenv import load_dotenv
 from common import *
 
+import uuid
 import os
+
+
+unique_id = str(uuid.uuid4())
 
 
 
