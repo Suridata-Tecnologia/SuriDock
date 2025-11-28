@@ -1,12 +1,13 @@
 from extensions.relatorio_ppt   import RelatorioPPT
 from common                     import *
 
+import traceback
+
 
 
 class StartProcess():
-    def __init__(self, agent_number, retry_count, body_message):
-        self.type_proccess  = body_message.split(' ## ')[0]
-        self.body_message   = body_message
+    def __init__(self, agent_number, retry_count, message_json):
+        self.message_json   = message_json
         self.agent_number   = agent_number
         self.retry_count    = retry_count
         
@@ -19,7 +20,7 @@ class StartProcess():
 
     def __need_qlik(self):
         need_qlik_list = ['relatorioppt']
-        if self.type_proccess in need_qlik_list:
+        if self.message_json['type_proccess'] in need_qlik_list:
             return True
         
         return False
@@ -89,7 +90,12 @@ class StartProcess():
 
             self.__set_state_agent('running')
 
-            operation_success = self.apps[self.type_proccess](self.agent_number, self.retry_count, self.body_message).run()
+            try:
+                operation_success = self.apps[self.message_json['type_proccess']](self.agent_number, self.retry_count, self.message_json).run()
+            except Exception as error:
+                operation_success = False
+                timeline_error = traceback.format_exc()
+                logger.error(f'Erro no processo {self.message_json["type_proccess"]}: {timeline_error}')
 
             self.__set_state_agent('stopped')
             self.__close_qlik()

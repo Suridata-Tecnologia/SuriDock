@@ -134,10 +134,6 @@ class Producer():
     def __send_message_rabbitmq(self):
         logger.info('Postando nova mensagem')
         self.channel.queue_declare(queue=suridata_queue, durable=True)
-
-        logger.debug(self.message_dict)
-        logger.debug(json.dumps(self.message_dict).encode('utf-8'))
-        
         self.channel.basic_publish(
             exchange='',
             routing_key=suridata_queue,

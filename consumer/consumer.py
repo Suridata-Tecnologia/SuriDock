@@ -37,7 +37,8 @@ def get_retry_message(headers):
 def callback(ch, method, properties, body, agent_number):
     headers = properties.headers or {}
     retry_count = get_retry_message(headers)
-    success = StartProcess(agent_number, retry_count, body.decode()).run()
+    mensagem_json = json.loads(body.decode('utf-8'))
+    success = StartProcess(agent_number, retry_count, mensagem_json).run()
 
     if success:
         ch.basic_ack(delivery_tag = method.delivery_tag)
@@ -57,5 +58,4 @@ def start_consumer(agent):
         on_message_callback=callback_with_args
     )
 
-    logger.info('Pronto para receber mensagens!')
     channel.start_consuming()

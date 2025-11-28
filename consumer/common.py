@@ -20,6 +20,7 @@ import subprocess
 import requests
 import psutil
 import pika
+import json
 import os
 
 
@@ -186,7 +187,7 @@ def edit_script_qvs(script_path, company_name, narrative, month_analysis, gestao
     with open(script_path, 'r', encoding='utf-8') as f:
         script_lines = f.readlines()
 
-    if narrative == 'False':
+    if not narrative:
         gestao_pos = has_gestao_pos(company_name)
     else:
         gestao_pos = False
@@ -197,7 +198,7 @@ def edit_script_qvs(script_path, company_name, narrative, month_analysis, gestao
     else:
         script_lines[13] = f"let vG_Atividadeda = 'Analisar';  // o que você quer fazer?\n"
 
-    if narrative == 'False':
+    if not narrative:
         script_lines[26] = f"let vG_Idioma = 'Portugues'; // <--- Idioma em que se deseja apresentar os slides depois do reload (sem acento). Valores possíveis:\n"
     else:
         script_lines[26] = f"let vG_Idioma = 'Ingles'; // <--- Idioma em que se deseja apresentar os slides depois do reload (sem acento). Valores possíveis:\n"
@@ -211,7 +212,6 @@ def edit_script_qvs(script_path, company_name, narrative, month_analysis, gestao
 
 
 def init_browser(download_path):
-
     service = Service()
     chrome_options = Options()
     chrome_options.add_experimental_option('prefs', {
@@ -297,7 +297,7 @@ def navigate_to_export(driver, wait, narrative, gestao_pos):
     wait.until(EC.presence_of_element_located((By.ID, 'navlist-item-story'))).click() # Botão do dropdown "Narrativa"
     sleep(10)
 
-    if narrative == 'False':
+    if not narrative:
         if gestao_pos:
             # PÓS - Relatório Gestão de Saúde e Risco
             wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[4]/div[4]/div/div[1]/div[1]/qmfe-embed-react/qmfe-root/div/div/div/qmfe-embed-react/qmfe-root/div[1]/div[4]/div/div[1]/div/div/div[4]/div/div/div/div[1]/button'))).click()
@@ -400,10 +400,10 @@ def need_audith(user_audith, company_pretty_name, audit_date, suridata_product):
     else:
         logger.info(f'{company_pretty_name} - esse relatório não precisa de auditoria')
 
-    if user_audith == 'False':
+    if not user_audith:
         is_audith = False
         logger.info(f'usuário alterou auditoria para: False')
-    elif user_audith == 'True':
+    elif user_audith:
         is_audith = True
         logger.info(f'usuário alterou auditoria para: True')
     else:
@@ -532,9 +532,9 @@ def unzip(compressed_file, path_to_extract='.', remove_on_extract=False):
 
 def move_to_drive(qvd_path, company_name, is_audith, download_path, narrative, company_pretty_name):
     for file in download_path.rglob('*.pptx'):
-        if narrative == 'False':
+        if not narrative:
             file_name = download_path.joinpath(f'{company_pretty_name}.pptx')
-        elif narrative == 'True':
+        else:
             file_name = download_path.joinpath(f'{company_pretty_name} IN.pptx')
 
         logger.info(f'{file.name} renomeado para {file_name.name}')
