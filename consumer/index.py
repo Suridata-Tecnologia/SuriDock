@@ -1,3 +1,4 @@
+from common     import close_all_qlik_process
 from consumer   import start_consumer
 
 import pyfiglet
@@ -17,4 +18,5 @@ if agent_number >= 5 or agent_number <= 0:
 
 
 print(pyfiglet.figlet_format('SuriDock', font='slant'))
+close_all_qlik_process()
 start_consumer(agent_number)
