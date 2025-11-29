@@ -6,10 +6,11 @@ import traceback
 
 
 class StartProcess():
-    def __init__(self, agent_number, retry_count, message_json):
-        self.message_json   = message_json
-        self.agent_number   = agent_number
-        self.retry_count    = retry_count
+    def __init__(self, agent_number, retry_count, disc_message_id, message_json):
+        self.disc_message_id    = disc_message_id
+        self.message_json       = message_json
+        self.agent_number       = agent_number
+        self.retry_count        = retry_count
         
         self.qlik_use = Path('config/qlik_use.txt')
 
@@ -91,7 +92,7 @@ class StartProcess():
             self.__set_state_agent('running')
 
             try:
-                operation_success = self.apps[self.message_json['type_proccess']](self.agent_number, self.retry_count, self.message_json).run()
+                operation_success = self.apps[self.message_json['type_proccess']](self.agent_number, self.retry_count, self.disc_message_id, self.message_json).run()
             except Exception as error:
                 operation_success = False
                 timeline_error = traceback.format_exc()

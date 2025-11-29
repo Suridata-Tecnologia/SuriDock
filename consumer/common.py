@@ -60,16 +60,13 @@ def connection_rabbitmq():
     return channel, connection
 
 
-def publish_message_discord(message, discord_user_id=None):
-    if discord_user_id:
-        message = f'<@{discord_user_id}> {message}'
-    
+def publish_message_discord(message_data):    
     channel, connection = connection_rabbitmq()
     channel.queue_declare(queue=RABBITMQ_MESSAGES, durable=True)
     channel.basic_publish(
         exchange='',
         routing_key=RABBITMQ_MESSAGES,
-        body=message
+        body=json.dumps(message_data).encode('utf-8')
     )
     connection.close()
 

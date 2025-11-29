@@ -100,34 +100,11 @@ class DiscordBot:
 
 
     # ----------------------------------------------------------
-    # Envia mensagem normal ou embed para o canal de bots
+    # Recebe um dict com dados do processo e cria ou atualiza um embed associado ao message_id.
     # ----------------------------------------------------------
-    async def send_to_channel(self, message: str):
-        await self.discord_ready_event.wait()
-        # Tentando interpretar como JSON
-        try:
-            data = json.loads(message)
-            if "process_id" in data:
-                await self.send_or_update_embed(data)
-                return
-        except Exception:
-            pass
-
-        # Se não for JSON válido envia como texto simples
-        channel = self.client.get_channel(self.discord_id_channel_bots)
-        if channel:
-            await channel.send(message)
-        else:
-            logger.error(f"Canal {self.discord_id_channel_bots} não encontrado.")
-
-
-    # ----------------------------------------------------------
-    # Recebe um dict com dados do processo e cria ou atualiza um embed associado ao process_id.
-    # ----------------------------------------------------------
-    async def send_or_update_embed(self, data: dict):
+    async def send_or_update_embed(self, message_json: dict):
         await self.discord_ready_event.wait()
 
-        process_id = data['process_id']
         channel = self.client.get_channel(self.discord_id_channel_bots)
 
         if not channel:
@@ -136,35 +113,35 @@ class DiscordBot:
 
         # Montando o embed
         embed = discord.Embed(
-            title=f'Status do Processo {process_id}',
+            title=f'Status - {message_json["type_process"]}',
             color=discord.Color.blue()
         )
-        embed.add_field(name='Empresa', value=data.get('empresa', '-'), inline=False)
-        embed.add_field(name='Tipo do processo', value=data.get('tipo', '-'), inline=False)
-        embed.add_field(name='Etapa Atual', value=data.get('etapa', '-'), inline=False)
-        embed.add_field(name='Início', value=data.get('inicio', '-'), inline=False)
+        embed.add_field(name='Solicitante', value=message_json.get('user_id', '-'), inline=False)
+        embed.add_field(name='Empresa', value=message_json.get('company', '-'), inline=False)
+        embed.add_field(name='Idioma', value=message_json.get('english', '-'), inline=False)
+        embed.add_field(name='Etapa Atual', value=message_json.get('stage', '-'), inline=False)
 
-        embed.set_footer(text='Atualizado automaticamente pelo SuriDock')
+        embed.set_footer(text=f'Pedido feito ás {message_json.get("footer", "-")}')
 
-        # Caso já exista mensagem deste processo → editar
-        if process_id in self.active_embeds:
-            info = self.active_embeds[process_id]
+        # Caso já exista mensagem deste processo
+        if message_json['message_id'] in self.active_embeds:
+            info = self.active_embeds[message_json['message_id']]
             try:
                 msg = await channel.fetch_message(info['message_id'])
                 await msg.edit(embed=embed)
-                logger.info(f'Embed do processo {process_id} atualizado.')
+                logger.info(f'Embed do processo {message_json["message_id"]} atualizado.')
                 return
             except Exception as e:
                 logger.error(f'Erro ao editar embed existente: {e}')
 
-        # Caso seja um processo novo → enviar nova mensagem
+        # Caso seja a primeira mensagem do processo
         message = await channel.send(embed=embed)
-        self.active_embeds[process_id] = {
+        self.active_embeds[message_json['message_id']] = {
             'message_id': message.id,
             'channel_id': channel.id
         }
 
-        logger.info(f'Novo embed criado para processo {process_id}.')
+        logger.info(f'Novo embed criado para processo {message_json['message_id']}.')
 
 
     # ----------------------------------------------------------
@@ -214,12 +191,12 @@ class DiscordBot:
                     if body is None:
                         continue
 
-                    message = body.decode()
-                    logger.info(f"Recebido do RabbitMQ: {message}")
+                    message_json = json.loads(body.decode('utf-8'))
+                    logger.info('Mensagem recebida do RabbitMQ')
 
                     # Enviar menssagem ao Discord
                     asyncio.run_coroutine_threadsafe(
-                        self.send_to_channel(message),
+                        self.send_or_update_embed(message_json),
                         loop
                     )
 

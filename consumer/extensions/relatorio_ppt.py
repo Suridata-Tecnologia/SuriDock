@@ -14,27 +14,39 @@ MACHINE_NAME = os.getenv('MACHINE_NAME')
 
 
 class RelatorioPPT():
-    def __init__(self, agent_number, retry_count, message_json):
+    def __init__(self, agent_number, retry_count, disc_message_id, message_json):
         self.qvd_path           = Path('G:/Drives compartilhados/Ambiente de Produção/_QVD')
         self.download_path      = Path.cwd().joinpath(f'downloads/raw_files/agent{agent_number}/')
         self.ready_path         = Path.cwd().joinpath(f'downloads/ready_files/agent{agent_number}/')
         self.script_path        = get_path_script_qvs(self.qvd_path, agent_number)
 
+        self.disc_message_id    = disc_message_id
+        self.mj                 = message_json
         self.agent_number       = agent_number
         self.retry_count        = retry_count
-        self.mj                 = message_json
 
 
     def __discord_message(self, message):
-        publish_message_discord(message, self.mj['discord_user_id'])
+        message_data = {
+            'message_id': self.disc_message_id,
+            'user_id': f'<@{self.mj["discord_user_id"]}>',
+            'company': self.mj['company_name'],
+            'type_process': 'Relatório PPT',
+            'english': 'Inglês' if self.mj['narrative'] else 'Português',
+            'stage': message,
+            'footer': self.mj['created_at']
+        }
+        publish_message_discord(message_data)
 
 
     def __clear_download_path(self):
+        self.__discord_message('organizando as pastas')
         for file in self.download_path.rglob('*.*'):
             file.unlink()
 
 
     def __organize_environment(self):
+        self.__discord_message('editando script do qlik')
         self.gestao_pos = has_gestao_pos(self.mj['company_name'])
         edit_script_qvs(
             script_path=self.script_path,
@@ -45,39 +57,17 @@ class RelatorioPPT():
         )
 
     def __init_browser(self):
+        self.__discord_message('abrindo navegador')
         self.driver = init_browser(self.download_path)
         self.wait = WebDriverWait(self.driver, 60)
 
 
     def __control_qlik(self):
         navigate_to_process(self.driver, self.wait, self.agent_number)
+        self.__discord_message('aguardando qlik processar a operadora')
         process_company(self.driver)
+        self.__discord_message('aguardando qlik exportar o ppt')
         return navigate_to_export(self.driver, self.wait, self.mj['narrative'], self.gestao_pos)
-    
-
-    def __answer_user(self, begin):
-        if begin:
-            if self.retry_count == 0:
-                if self.mj['narrative']:
-                    self.__discord_message(f'iniciei o processo para gerar o relatório em inglês da {self.mj["company_name"]}')
-                else:
-                    self.__discord_message(f'iniciei o processo para gerar o relatório em português da {self.mj["company_name"]}')
-            else:
-                if self.mj['narrative']:
-                    self.__discord_message(f'iniciei o processo para gerar o relatório em inglês da {self.mj["company_name"]} pela {self.retry_count+1}° vez')
-                else:
-                    self.__discord_message(f'iniciei o processo para gerar o relatório em português da {self.mj["company_name"]} pela {self.retry_count+1}° vez')
-        else:
-            if self.retry_count == 0:
-                if self.mj['narrative']:
-                    self.__discord_message(f'relatorio em inglês da {self.mj["company_name"]} gerado e salvo no drive :white_check_mark:')
-                else:
-                    self.__discord_message(f'relatorio em português da {self.mj["company_name"]} gerado e salvo no drive :white_check_mark:')
-            else:
-                if self.mj['narrative']:
-                    self.__discord_message(f'relatorio em inglês da {self.mj["company_name"]} gerado e salvo no drive depois de {self.retry_count+1} tentativas :white_check_mark:')
-                else:
-                    self.__discord_message(f'relatorio em português da {self.mj["company_name"]} gerado e salvo no drive depois de {self.retry_count+1} tentativas :white_check_mark:')
 
 
     def __manager_qlik_and_move_to_drive(self):
@@ -86,19 +76,19 @@ class RelatorioPPT():
             wait_until_download_finish(self.download_path, self.driver)
             company_pretty_name, audit_date, suridata_product = get_pretty_name(self.mj['company_name'])
             is_audith = need_audith(self.mj['audith'], company_pretty_name, audit_date, suridata_product)
+            self.__discord_message('esperando suripoint processar o arquivo')
             if move_to_drive(self.qvd_path, self.mj['company_name'], is_audith, self.download_path, self.mj['narrative'], company_pretty_name):
-                self.__answer_user(False)
+                self.__discord_message('relatório salvo no drive :white_check_mark:')
                 return True
             else:
-                self.__discord_message(f'houve um erro com o suripoint e não foi possível gerar o arquivo da {self.mj["company_name"]} ❌')
+                self.__discord_message('erro no suripoint ❌')
         else:
-            self.__discord_message(f'houve um erro com o qlik e não foi possível gerar o arquivo da {self.mj["company_name"]} ❌')
+            self.__discord_message('erro no qlik ❌')
         
         return False
 
 
     def run(self):
-        self.__answer_user(True)
         self.__clear_download_path()
         self.__organize_environment()
         self.__init_browser()

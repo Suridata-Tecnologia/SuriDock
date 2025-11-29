@@ -2,13 +2,15 @@ from start_process  import StartProcess
 from functools      import partial
 from common         import *
 
+import uuid
+
 
 
 load_dotenv()
 RABBITMQ_QUEUE      = os.getenv('RABBITMQ_QUEUE')
 
 
-def return_message(ch, method, retry_count, headers, body):
+def return_message(ch, method, retry_count, disc_message_id, headers, body):
     retry_count += 1
     if retry_count >= 5:
         logger.info(f"Descartando mensagem após {retry_count} tentativas")
@@ -16,9 +18,8 @@ def return_message(ch, method, retry_count, headers, body):
     else:
         # Atualiza headers com novo contador e reenfileira
         new_properties = pika.BasicProperties(
-            headers={**headers, "x-retry-count": retry_count}
+            headers={**headers, 'x-retry-count': retry_count, 'disc_message_id': disc_message_id}
         )
-
 
         ch.basic_ack(method.delivery_tag)  # remove original
         ch.basic_publish(
@@ -30,20 +31,21 @@ def return_message(ch, method, retry_count, headers, body):
 
 
 def get_retry_message(headers):
-    retry_count = headers.get("x-retry-count", 0)
-    return retry_count
+    retry_count = headers.get('x-retry-count', 0)
+    disc_message_id = headers.get('disc_message_id', str(uuid.uuid4()))
+    return retry_count, disc_message_id
 
 
 def callback(ch, method, properties, body, agent_number):
     headers = properties.headers or {}
-    retry_count = get_retry_message(headers)
-    mensagem_json = json.loads(body.decode('utf-8'))
-    success = StartProcess(agent_number, retry_count, mensagem_json).run()
+    retry_count, disc_message_id = get_retry_message(headers)
+    message_json = json.loads(body.decode('utf-8'))
+    success = StartProcess(agent_number, retry_count, disc_message_id, message_json).run()
 
     if success:
         ch.basic_ack(delivery_tag = method.delivery_tag)
     else:
-        return_message(ch, method, retry_count, headers, body)
+        return_message(ch, method, retry_count, disc_message_id, headers, body)
 
 
 def start_consumer(agent):
