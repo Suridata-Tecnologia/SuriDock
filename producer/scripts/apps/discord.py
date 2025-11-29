@@ -163,8 +163,8 @@ class DiscordBot:
         else:
             # Calcula o tempo
             created_at = datetime.strptime(message_json['footer'], '%d/%m/%Y %H:%M:%S')
-            process_time = datetime.now(fuso_brasilia) - created_at
-            minutes = ceil(process_time.seconds / 60)
+            time_now = datetime.strptime(datetime.now(fuso_brasilia).strftime('%d/%m/%Y %H:%M:%S'), '%d/%m/%Y %H:%M:%S')
+            minutes = ceil((time_now - created_at).seconds / 60)
             embed.set_footer(text=f'Concluído em {minutes} minutos')
 
 
