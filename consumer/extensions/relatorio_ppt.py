@@ -26,7 +26,7 @@ class RelatorioPPT():
         self.retry_count        = retry_count
 
 
-    def __discord_message(self, message):
+    def __discord_message(self, message, progress, status='running'):
         message_data = {
             'message_id': self.disc_message_id,
             'user_id': f'<@{self.mj["discord_user_id"]}>',
@@ -34,19 +34,21 @@ class RelatorioPPT():
             'type_process': 'Relatório PPT',
             'english': 'Inglês' if self.mj['narrative'] else 'Português',
             'stage': message,
+            'progress': progress,
+            'status': status,
             'footer': self.mj['created_at']
         }
         publish_message_discord(message_data)
 
 
     def __clear_download_path(self):
-        self.__discord_message('organizando as pastas')
+        self.__discord_message('organizando as pastas', 0)
         for file in self.download_path.rglob('*.*'):
             file.unlink()
 
 
     def __organize_environment(self):
-        self.__discord_message('editando script do qlik')
+        self.__discord_message('editando script do qlik', 16)
         self.gestao_pos = has_gestao_pos(self.mj['company_name'])
         edit_script_qvs(
             script_path=self.script_path,
@@ -57,16 +59,16 @@ class RelatorioPPT():
         )
 
     def __init_browser(self):
-        self.__discord_message('abrindo navegador')
+        self.__discord_message('abrindo navegador', 32)
         self.driver = init_browser(self.download_path)
         self.wait = WebDriverWait(self.driver, 60)
 
 
     def __control_qlik(self):
         navigate_to_process(self.driver, self.wait, self.agent_number)
-        self.__discord_message('aguardando qlik processar a operadora')
+        self.__discord_message('aguardando qlik processar a operadora', 48)
         process_company(self.driver)
-        self.__discord_message('aguardando qlik exportar o ppt')
+        self.__discord_message('aguardando qlik exportar o ppt', 64)
         return navigate_to_export(self.driver, self.wait, self.mj['narrative'], self.gestao_pos)
 
 
@@ -76,14 +78,14 @@ class RelatorioPPT():
             wait_until_download_finish(self.download_path, self.driver)
             company_pretty_name, audit_date, suridata_product = get_pretty_name(self.mj['company_name'])
             is_audith = need_audith(self.mj['audith'], company_pretty_name, audit_date, suridata_product)
-            self.__discord_message('esperando suripoint processar o arquivo')
+            self.__discord_message('esperando suripoint processar o arquivo', 80)
             if move_to_drive(self.qvd_path, self.mj['company_name'], is_audith, self.download_path, self.mj['narrative'], company_pretty_name):
-                self.__discord_message('relatório salvo no drive :white_check_mark:')
+                self.__discord_message('relatório salvo no drive', 100, 'success')
                 return True
             else:
-                self.__discord_message('erro no suripoint ❌')
+                self.__discord_message('erro no suripoint', 0, 'error')
         else:
-            self.__discord_message('erro no qlik ❌')
+            self.__discord_message('erro no qlik', 0, 'error')
         
         return False
 

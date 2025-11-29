@@ -1,10 +1,11 @@
-
-# from common                         import get_folders_drive_by_id
 from extensions.relatorio_ppt       import RelatorioPPT
 from discord                        import app_commands
 from discord.ext                    import commands
+from datetime                       import datetime
+from zoneinfo                       import ZoneInfo
 from loguru                         import logger
 from time                           import sleep
+from math                           import ceil
 
 import threading
 import requests
@@ -16,7 +17,7 @@ import os
 
 
 
-# folders = get_folders_drive_by_id('1_doPhMfSV216okC36vs-D62enjmMCt4t')
+fuso_brasilia = ZoneInfo("America/Sao_Paulo")
 
 
 class DiscordBot:
@@ -37,6 +38,19 @@ class DiscordBot:
         intents.messages = True
         self.client = commands.Bot(command_prefix=None, intents=intents)
         self.tree = self.client.tree
+        self.STATUS_EMOJIS = {
+            "pending": "⏳",
+            "running": "🔄",
+            "success": "✅",
+            "error": "❌"
+        }
+
+        self.STATUS_COLORS = {
+            "pending": discord.Color.yellow(),
+            "running": discord.Color.blue(),
+            "success": discord.Color.green(),
+            "error": discord.Color.red(),
+        }
 
         # Evento assíncrono para aguardar o Discord iniciar antes de enviar mensagens
         self.discord_ready_event = asyncio.Event()
@@ -100,28 +114,59 @@ class DiscordBot:
 
 
     # ----------------------------------------------------------
+    # Cria uma barra de progresso no discord
+    # ----------------------------------------------------------
+    def build_progress_bar(self, percent: int, size: int = 20) -> str:
+        percent = max(0, min(100, percent))
+        filled = int((percent / 100) * size)
+        empty = size - filled
+        return "🟩" * filled + "⬜" * empty + f" {percent}%"
+
+
+    # ----------------------------------------------------------
     # Recebe um dict com dados do processo e cria ou atualiza um embed associado ao message_id.
     # ----------------------------------------------------------
     async def send_or_update_embed(self, message_json: dict):
         await self.discord_ready_event.wait()
 
         channel = self.client.get_channel(self.discord_id_channel_bots)
-
         if not channel:
-            logger.error('Canal não encontrado.')
+            logger.error('Canal do Discord não encontrado.')
             return
 
-        # Montando o embed
-        embed = discord.Embed(
-            title=f'Status - {message_json["type_process"]}',
-            color=discord.Color.blue()
-        )
-        embed.add_field(name='Solicitante', value=message_json.get('user_id', '-'), inline=False)
-        embed.add_field(name='Empresa', value=message_json.get('company', '-'), inline=False)
-        embed.add_field(name='Idioma', value=message_json.get('english', '-'), inline=False)
-        embed.add_field(name='Etapa Atual', value=message_json.get('stage', '-'), inline=False)
+        status = message_json.get('status', 'running')
+        emoji = self.STATUS_EMOJIS.get(status, '🔄')
+        color = self.STATUS_COLORS.get(status, discord.Color.blue())
 
-        embed.set_footer(text=f'Pedido feito ás {message_json.get("footer", "-")}')
+        progress = int(message_json.get('progress', 0))
+        progress_bar = self.build_progress_bar(progress)
+
+        # Construir embed
+        embed = discord.Embed(
+            title=f'{emoji} Status - {message_json["type_process"]}',
+            description=f'**{message_json.get('stage', 'Executando...')}**',
+            color=color
+        )
+
+        embed.add_field(name='Solicitante', value=message_json.get('user_id', '-'), inline=True)
+        embed.add_field(name='Empresa', value=message_json.get('company', '-'), inline=True)
+        embed.add_field(name='Idioma', value=message_json.get('english', '-'), inline=False)
+
+        embed.add_field(
+            name='Progresso',
+            value=progress_bar,
+            inline=False
+        )
+
+        if status != 'success':
+            embed.set_footer(text=f'Pedido feito ás {message_json.get("footer", "-")}')
+        else:
+            # Calcula o tempo
+            created_at = datetime.strptime(message_json['footer'], '%d/%m/%Y %H:%M:%S')
+            process_time = datetime.now(fuso_brasilia) - created_at
+            minutes = ceil(process_time.seconds / 60)
+            embed.set_footer(text=f'Concluído em {minutes} minutos')
+
 
         # Caso já exista mensagem deste processo
         if message_json['message_id'] in self.active_embeds:
@@ -183,6 +228,7 @@ class DiscordBot:
                 channel = connection.channel()
 
                 channel.queue_declare(queue=self.rabbitmq_messages, durable=True)
+                channel.basic_qos(prefetch_count=1)
                 logger.info(f"Conectado. Consumindo fila '{self.rabbitmq_messages}'.")
 
                 for method, properties, body in channel.consume(
@@ -192,7 +238,6 @@ class DiscordBot:
                         continue
 
                     message_json = json.loads(body.decode('utf-8'))
-                    logger.info('Mensagem recebida do RabbitMQ')
 
                     # Enviar menssagem ao Discord
                     asyncio.run_coroutine_threadsafe(
