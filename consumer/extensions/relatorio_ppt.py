@@ -67,14 +67,14 @@ class RelatorioPPT():
     def __control_qlik(self):
         navigate_to_process(self.driver, self.wait, self.agent_number)
         self.__discord_message('aguardando qlik processar a operadora', 48)
-        process_company(self.driver)
+        if not process_company(self.driver):
+            return False
         self.__discord_message('aguardando qlik exportar o ppt', 64)
         return navigate_to_export(self.driver, self.wait, self.mj['narrative'], self.gestao_pos)
 
 
     def __manager_qlik_and_move_to_drive(self):
-        download_success = self.__control_qlik()
-        if download_success:
+        if self.__control_qlik():
             wait_until_download_finish(self.download_path, self.driver)
             company_pretty_name, audit_date, suridata_product = get_pretty_name(self.mj['company_name'])
             is_audith = need_audith(self.mj['audith'], company_pretty_name, audit_date, suridata_product)

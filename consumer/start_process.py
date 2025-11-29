@@ -15,7 +15,7 @@ class StartProcess():
         self.qlik_use = Path('config/qlik_use.txt')
 
         self.apps = {
-            'relatorioppt': RelatorioPPT,
+            'relatorioppt': {'class': RelatorioPPT, 'pretty_name': 'Relatório PPT'}
         }
 
 
@@ -92,11 +92,22 @@ class StartProcess():
             self.__set_state_agent('running')
 
             try:
-                operation_success = self.apps[self.message_json['type_proccess']](self.agent_number, self.retry_count, self.disc_message_id, self.message_json).run()
+                operation_success = self.apps[self.message_json['type_proccess']['class']](self.agent_number, self.retry_count, self.disc_message_id, self.message_json).run()
             except Exception as error:
                 operation_success = False
                 timeline_error = traceback.format_exc()
-                logger.error(f'Erro no processo {self.message_json["type_proccess"]}: {timeline_error}')
+                message_data = {
+                    'message_id': self.disc_message_id,
+                    'user_id': f'<@{self.message_json["discord_user_id"]}>',
+                    'company': self.message_json['company_name'],
+                    'type_process': self.message_json['type_proccess']['pretty_name'],
+                    'stage': 'Ocorreu um erro desconhecido',
+                    'progress': 0,
+                    'status': 'error',
+                    'footer': self.message_json['created_at']
+                }
+                publish_message_discord(message_data)
+                logger.error(f'Erro no processo {self.message_json["type_proccess"]["pretty_name"]}: {timeline_error}')
 
             self.__set_state_agent('stopped')
             self.__close_qlik()

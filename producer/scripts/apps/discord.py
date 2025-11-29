@@ -87,6 +87,8 @@ class DiscordBot:
             await interaction.response.defer()
             message = await interaction.followup.send(f'{interaction.user.mention} Processando sua solicitação...', ephemeral=False)
             await interaction.followup.edit_message(message_id=message.id, content=f'{interaction.user.mention} Pong!')
+            await asyncio.sleep(self.time_to_delete)
+            await interaction.delete_original_response()
 
 
         @self.tree.command(name="relatorioppt", description="Gera o relatório pelo qlik")
@@ -111,6 +113,8 @@ class DiscordBot:
                 answer_to_user = RelatorioPPT(interaction.user.id, message.id, empresa, False, mes_analise, auditoria).run()
 
             await interaction.followup.edit_message(message_id=message.id, content=f'{interaction.user.mention} {answer_to_user}')
+            await asyncio.sleep(self.time_to_delete)
+            await interaction.delete_original_response()
 
 
     # ----------------------------------------------------------

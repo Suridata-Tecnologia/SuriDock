@@ -260,11 +260,19 @@ def process_company(driver):
         sleep(10)
         try:
             # Botão do qlik "Continuar editando"
-            driver.find_element(By.XPATH, '/html/body/div[9]/div[3]/div/div[2]/div/div/button').click()
-            break
+            button = driver.find_element(By.XPATH, '/html/body/div[9]/div[3]/div/div[2]/div/div/button')
+            try:
+                error = driver.find_element(By.XPATH, '/html/body/div[9]/div[3]/div/div[1]/div/div[1]/p')
+                if error.text.lower() == 'carga de dados não concluída.':
+                    driver.quit()
+                    return False
+            except:
+                pass
+            
+            button.click()
+            return True
         except:
             pass
-    sleep(2)
 
 
 def wait_qlik_create_ppt(driver):
