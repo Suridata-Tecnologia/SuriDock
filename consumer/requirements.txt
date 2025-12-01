@@ -7,4 +7,5 @@ selenium
 requests
 loguru
 psutil
+tzdata
 pika
