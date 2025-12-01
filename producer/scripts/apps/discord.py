@@ -147,7 +147,7 @@ class DiscordBot:
 
         # Construir embed
         embed = discord.Embed(
-            title=f'{emoji} Status - {message_json["type_process"]}',
+            title=f'{emoji} Status - {message_json["type_process"]} {emoji}',
             description=f'**{message_json.get('stage', 'Executando...')}**',
             color=color
         )

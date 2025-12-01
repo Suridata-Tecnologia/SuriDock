@@ -96,7 +96,6 @@ class StartProcess():
             except Exception as error:
                 operation_success = False
                 timeline_error = traceback.format_exc()
-                import ipdb; ipdb.set_trace()
                 message_data = {
                     'message_id': self.disc_message_id,
                     'user_id': f'<@{self.message_json["discord_user_id"]}>',
