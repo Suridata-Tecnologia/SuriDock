@@ -6,4 +6,5 @@ pyfiglet
 selenium
 requests
 loguru
+psutil
 pika
