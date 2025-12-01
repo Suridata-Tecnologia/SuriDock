@@ -4,5 +4,6 @@ python-dotenv
 pywinauto
 pyfiglet
 selenium
+requests
 loguru
 pika
