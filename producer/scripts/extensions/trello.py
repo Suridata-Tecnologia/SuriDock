@@ -1,10 +1,11 @@
-from services.trello.trello     import Trello
 from loguru                     import logger
 from time                       import sleep
 from common                     import *
 
 import threading
 import requests
+
+
 
 
 class Trello():
@@ -31,17 +32,67 @@ class Trello():
             logger.error(f'Erro ao mover card {card_id}: {resp.text}')
         else:
             logger.info(f'Card {card_id} movido para lista {list_id}')
+
+
+    def get_list_id_by_name(self, list_name: str):
+        url = f'https://api.trello.com/1/boards/{self.suri_trello_board_id}/lists'
+        params = {
+            'key': self.suri_trello_api_key,
+            'token': self.suri_trello_api_token
+        }
+
+        try:
+            resp = requests.get(url, params=params)
+            if resp.status_code != 200:
+                logger.error(f'Erro ao consultar listas do board: {resp.text}')
+                return None
+
+            lists = resp.json()
+
+            for lst in lists:
+                if lst['name'].strip().lower() == list_name.strip().lower():
+                    return lst['id']
+
+            logger.error(f'Lista "{list_name}" não encontrada no board.')
+            return None
+
+        except Exception as e:
+            logger.error(f'Erro ao buscar listas do board: {e}')
+            return None
+
+
+    def trello_list_cards(self, list_id: str):
+        url = f"https://api.trello.com/1/lists/{list_id}/cards"
+        params = {
+            "key": self.trello_key,
+            "token": self.trello_token
+        }
+        try:
+            response = requests.get(url, params=params)
+            if response.status_code != 200:
+                logger.error(f"Erro ao buscar lista {list_id}: {response.text}")
+                return []
+            return response.json()
+        except Exception as e:
+            logger.error(f"Erro ao consultar Trello: {e}")
+            return []
         
 
     def _trello_watcher(self):
         logger.info('Thread do Trello iniciada.')
 
-        trello_client = Trello()
-        board = trello_client.get_board(self.suri_trello_board_id)
+        source_id = self.get_list_id_by_name(self.list_source_name)
+        target_id = self.get_list_id_by_name(self.list_target_name)
+
         while True:
             try:
-                board_list = board.get_list_by_name(self.list_source_name)
-                cards = board_list.get_cards()
+                if not source_id or not target_id:
+                    sec = 5
+                    logger.error(f'Não foi possível obter IDs das listas. Tentando novamente {sec}s...')
+                    sleep(sec)
+                    continue
+
+                cards = self.trello_list_cards(source_id)
 
                 for card in cards:
                     card_id = card['id']
@@ -50,7 +101,7 @@ class Trello():
                     logger.info(f'Card encontrado para processamento: {card_name} ({card_id})')
 
                     # Mover o card para lista 'Operação: Processamento'
-                    self.trello_move_card(card_id, self.list_target_name)
+                    self.trello_move_card(card_id, target_id)
 
                     # Enviar mensagem ao RabbitMQ para iniciar processo
                     payload = {
