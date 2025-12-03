@@ -3,6 +3,7 @@ from discord                        import app_commands
 from discord.ext                    import commands
 from datetime                       import datetime
 from zoneinfo                       import ZoneInfo
+from extensions.trello              import Trello
 from loguru                         import logger
 from time                           import sleep
 from math                           import ceil
@@ -23,13 +24,13 @@ fuso_brasilia = ZoneInfo("America/Sao_Paulo")
 class DiscordBot:
     def __init__(self):
         # Carrega variáveis de ambiente
-        self.discord_id_channel_bots    = int(os.getenv("DISCORD_ID_CHANNEL_BOTS"))
-        self.rabbitmq_username          = os.getenv("RABBITMQ_USERNAME")
-        self.rabbitmq_password          = os.getenv("RABBITMQ_PASSWORD")
-        self.rabbitmq_messages          = os.getenv("RABBITMQ_MESSAGES")
-        self.discord_webhook            = os.getenv("DISCORD_WEBHOOK")
-        self.discord_token              = os.getenv("DISCORD_TOKEN")
-        self.rabbitmq_host              = os.getenv("RABBITMQ_HOST")
+        self.discord_id_channel_bots    = int(os.getenv('DISCORD_ID_CHANNEL_BOTS'))
+        self.rabbitmq_username          = os.getenv('RABBITMQ_USERNAME')
+        self.rabbitmq_password          = os.getenv('RABBITMQ_PASSWORD')
+        self.rabbitmq_messages          = os.getenv('RABBITMQ_MESSAGES')
+        self.discord_webhook            = os.getenv('DISCORD_WEBHOOK')
+        self.discord_token              = os.getenv('DISCORD_TOKEN')
+        self.rabbitmq_host              = os.getenv('RABBITMQ_HOST')
         self.time_to_delete             = 180
         self.active_embeds              = {}
 
@@ -58,6 +59,11 @@ class DiscordBot:
         # Registro de event handlers
         self._register_handlers()
         self._register_commands()
+
+        self.trello = Trello(
+            list_source_name='Operação: Aguardando Processamento',
+            list_target_name='Operação: Processamento'
+        )
 
 
     # ----------------------------------------------------------

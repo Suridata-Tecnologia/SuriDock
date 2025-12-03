@@ -7,4 +7,5 @@ discord
 asyncio
 loguru
 psutil
+trello
 pika

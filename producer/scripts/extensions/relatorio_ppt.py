@@ -30,7 +30,9 @@ class RelatorioPPT():
                     'audith': self.user_audith,
                     'narrative': self.english,
                     'user_email': None,
-                    'mail_list': None
+                    'mail_list': None,
+                    'discord_name': f'<@{self.user_id}>',
+                    'company_id': None
                 }
                 Producer(message_data).run()
                 
