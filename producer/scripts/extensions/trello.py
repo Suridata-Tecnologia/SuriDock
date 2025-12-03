@@ -64,8 +64,8 @@ class Trello():
     def trello_list_cards(self, list_id: str):
         url = f"https://api.trello.com/1/lists/{list_id}/cards"
         params = {
-            "key": self.trello_key,
-            "token": self.trello_token
+            "key": self.suri_trello_api_key,
+            "token": self.suri_trello_api_token
         }
         try:
             response = requests.get(url, params=params)
@@ -80,7 +80,6 @@ class Trello():
 
     def _trello_watcher(self):
         logger.info('Thread do Trello iniciada.')
-
         source_id = self.get_list_id_by_name(self.list_source_name)
         target_id = self.get_list_id_by_name(self.list_target_name)
 
