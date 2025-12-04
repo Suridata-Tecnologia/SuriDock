@@ -116,7 +116,7 @@ class Trello():
                         'narrative': None,
                         'user_email': None,
                         'mail_list': None,
-                        'discord_name': 'Bot - Sentinela',
+                        'discord_username': 'Bot - Sentinela',
                         'company_id': card_name.split(' - ')[0]
                     }
                     Producer(payload).run()

@@ -11,13 +11,13 @@ import os
 
 
 
-rabbitmq_username   = os.getenv("RABBITMQ_USERNAME")
-rabbitmq_password   = os.getenv("RABBITMQ_PASSWORD")
-drive_id_qvd        = os.getenv("DRIVE_ID_QVD")
+rabbitmq_username   = os.getenv('RABBITMQ_USERNAME')
+rabbitmq_password   = os.getenv('RABBITMQ_PASSWORD')
+drive_id_qvd        = os.getenv('DRIVE_ID_QVD')
 host_rabbitmq       = os.getenv('RABBITMQ_HOST')
 suridata_queue      = os.getenv('RABBITMQ_QUEUE')
 
-fuso_brasilia = ZoneInfo("America/Sao_Paulo")
+fuso_brasilia = ZoneInfo('America/Sao_Paulo')
 
 
 

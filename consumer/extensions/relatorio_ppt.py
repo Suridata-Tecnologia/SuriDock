@@ -1,11 +1,7 @@
 from dotenv import load_dotenv
 from common import *
 
-import uuid
 import os
-
-
-unique_id = str(uuid.uuid4())
 
 
 
@@ -14,7 +10,7 @@ MACHINE_NAME = os.getenv('MACHINE_NAME')
 
 
 class RelatorioPPT():
-    def __init__(self, agent_number, retry_count, disc_message_id, message_json):
+    def __init__(self, agent_number, retry_count, disc_message_id, message_json, pretty_name):
         self.qvd_path           = Path('G:/Drives compartilhados/Ambiente de Produção/_QVD')
         self.download_path      = Path.cwd().joinpath(f'downloads/raw_files/agent{agent_number}/')
         self.ready_path         = Path.cwd().joinpath(f'downloads/ready_files/agent{agent_number}/')
@@ -24,14 +20,15 @@ class RelatorioPPT():
         self.mj                 = message_json
         self.agent_number       = agent_number
         self.retry_count        = retry_count
+        self.pretty_name        = pretty_name
 
 
     def __discord_message(self, message, progress, status='running'):
         message_data = {
             'message_id': self.disc_message_id,
-            'user_id': f'<@{self.mj["discord_user_id"]}>',
+            'discord_username': self.mj['discord_username'],
             'company': self.mj['company_name'],
-            'type_process': 'Relatório PPT',
+            'type_process': self.pretty_name,
             'english': 'Inglês' if self.mj['narrative'] else 'Português',
             'stage': message,
             'progress': progress,

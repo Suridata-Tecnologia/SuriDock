@@ -153,14 +153,16 @@ class DiscordBot:
 
         # Construir embed
         embed = discord.Embed(
-            title=f'{emoji} Status - {message_json["type_process"]} {emoji}',
+            title=f'{emoji} Status - {message_json['type_process']} {emoji}',
             description=f'**{message_json.get('stage', 'Executando...')}**',
             color=color
         )
 
-        embed.add_field(name='Solicitante', value=message_json.get('user_id', '-'), inline=True)
+        embed.add_field(name='Solicitante', value=message_json.get('discord_username', '-'), inline=True)
         embed.add_field(name='Empresa', value=message_json.get('company', '-'), inline=True)
-        embed.add_field(name='Idioma', value=message_json.get('english', '-'), inline=False)
+
+        if '-' != message_json.get('english', '-'):
+            embed.add_field(name='Idioma', value=message_json.get('english', '-'), inline=False)
 
         embed.add_field(
             name='Progresso',
@@ -169,7 +171,7 @@ class DiscordBot:
         )
 
         if status != 'success':
-            embed.set_footer(text=f'Pedido feito ás {message_json.get("footer", "-")}')
+            embed.set_footer(text=f'Pedido feito ás {message_json.get('footer', '-')}')
         else:
             # Calcula o tempo
             created_at = datetime.strptime(message_json['footer'], '%d/%m/%Y %H:%M:%S')
@@ -184,7 +186,7 @@ class DiscordBot:
             try:
                 msg = await channel.fetch_message(info['message_id'])
                 await msg.edit(embed=embed)
-                logger.info(f'Embed do processo {message_json["message_id"]} atualizado.')
+                logger.info(f'Embed do processo {message_json['message_id']} atualizado.')
                 return
             except Exception as e:
                 logger.error(f'Erro ao editar embed existente: {e}')

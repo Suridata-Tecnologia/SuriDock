@@ -59,7 +59,7 @@ lista de emails
 essa é a lista dos destinatários que receberão os emails
 
 12
-discord_name
+discord_username
 Nome do usuário no discord
 usado para mencionar o usuário nas mensagens do discord
 
@@ -69,4 +69,4 @@ ID da empresa
 usado para identificar qual empresa o bot precisa rodar
 
 template
-type_proccess ## created_at ## company_name ## discord_user_id ## discord_message_id ## trello_card_id ## activity ## month_analysis ## audith ## narrative ## user_email ## mail_list ## discord_name ## company_id
+type_proccess ## created_at ## company_name ## discord_user_id ## discord_message_id ## trello_card_id ## activity ## month_analysis ## audith ## narrative ## user_email ## mail_list ## discord_username ## company_id

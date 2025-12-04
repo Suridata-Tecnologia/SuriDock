@@ -1,4 +1,5 @@
 from extensions.relatorio_ppt   import RelatorioPPT
+from extensions.sentinel        import Sentinel
 from common                     import *
 
 import traceback
@@ -15,12 +16,13 @@ class StartProcess():
         self.qlik_use = Path('config/qlik_use.txt')
 
         self.apps = {
-            'relatorioppt': {'class': RelatorioPPT, 'pretty_name': 'Relatório PPT'}
+            'relatorioppt': {'class': RelatorioPPT, 'pretty_name': 'Relatório PPT'},
+            'sentinel': {'class': Sentinel, 'pretty_name': 'Sentinela'}
         }
 
 
     def __need_qlik(self):
-        need_qlik_list = ['relatorioppt']
+        need_qlik_list = ['relatorioppt', 'sentinel']
         if self.message_json['type_proccess'] in need_qlik_list:
             return True
         
@@ -92,13 +94,19 @@ class StartProcess():
             self.__set_state_agent('running')
 
             try:
-                operation_success =  self.apps[self.message_json['type_proccess']]['class'](self.agent_number, self.retry_count, self.disc_message_id, self.message_json).run()
+                operation_success =  self.apps[self.message_json['type_proccess']]['class'](
+                    self.agent_number,
+                    self.retry_count,
+                    self.disc_message_id,
+                    self.message_json,
+                    self.apps[self.message_json['type_proccess']]['pretty_name']
+                ).run()
             except Exception as error:
                 operation_success = False
                 timeline_error = traceback.format_exc()
                 message_data = {
                     'message_id': self.disc_message_id,
-                    'user_id': f'<@{self.message_json["discord_user_id"]}>',
+                    'discord_username': self.message_json['discord_username'],
                     'company': self.message_json['company_name'],
                     'type_process': self.apps[self.message_json['type_proccess']]['pretty_name'],
                     'stage': 'Ocorreu um erro desconhecido',

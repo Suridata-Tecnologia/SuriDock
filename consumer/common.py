@@ -168,15 +168,27 @@ def has_gestao_pos(drive_folder):
         return False
 
 
-def get_path_script_qvs(qvd_path, agent_number):
+def get_path_script_qvs(qvd_path, agent_number, sentinel=False):
     if MACHINE_NAME.lower() == 'homologação':
-        script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-homo-bot{agent_number}.qvs')
+        if sentinel:
+            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-SentinelTESTE{agent_number}.qvs')
+        else:
+            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-homo-bot{agent_number}.qvs')
     elif MACHINE_NAME.lower() == 'produção 1':
-        script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-prod1-bot{agent_number}.qvs')
+        if sentinel:
+            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-Sentinel1-agent{agent_number}.qvs')
+        else:
+            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-prod1-bot{agent_number}.qvs')
     elif MACHINE_NAME.lower() == 'produção 2':
-        script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-prod2-bot{agent_number}.qvs')
+        if sentinel:
+            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-Sentinel2-agent{agent_number}.qvs')
+        else:
+            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-prod2-bot{agent_number}.qvs')
     elif MACHINE_NAME.lower() == 'produção 3':
-        script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-prod3-bot{agent_number}.qvs')
+        if sentinel:
+            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-Sentinel3-agent{agent_number}.qvs')
+        else:
+            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-prod3-bot{agent_number}.qvs')
     else:
         logger.error(f'Máquina não identificada: {MACHINE_NAME}')
         quit()
@@ -184,35 +196,38 @@ def get_path_script_qvs(qvd_path, agent_number):
     return script_path
 
 
-def edit_script_qvs(script_path, company_name, narrative, month_analysis, gestao_pos):
+def edit_script_qvs(script_path, company_name, narrative, month_analysis, gestao_pos, sentinel=False):
     with open(script_path, 'r', encoding='utf-8') as f:
         script_lines = f.readlines()
 
-    if not narrative:
-        gestao_pos = has_gestao_pos(company_name)
+    if sentinel:
+        script_lines[10] = f"let vG_ClientName  = '{company_name.upper()}'; //<--- NOME DO CLIENTE EM LETA minúscula - conforme pasta do Drive\n"
     else:
-        gestao_pos = False
+        if not narrative:
+            gestao_pos = has_gestao_pos(company_name)
+        else:
+            gestao_pos = False
 
-    script_lines[10] = f"let vG_ClientName  = '{company_name.upper()}'; //<--- NOME DO CLIENTE EM LETA minúscula - conforme pasta do Drive\n"
-    if gestao_pos:
-        script_lines[13] = f"let vG_Atividadeda = 'Processar';  // o que você quer fazer?\n"
-    else:
-        script_lines[13] = f"let vG_Atividadeda = 'Analisar';  // o que você quer fazer?\n"
+        script_lines[10] = f"let vG_ClientName  = '{company_name.upper()}'; //<--- NOME DO CLIENTE EM LETA minúscula - conforme pasta do Drive\n"
+        if gestao_pos:
+            script_lines[13] = f"let vG_Atividadeda = 'Processar';  // o que você quer fazer?\n"
+        else:
+            script_lines[13] = f"let vG_Atividadeda = 'Analisar';  // o que você quer fazer?\n"
 
-    if not narrative:
-        script_lines[26] = f"let vG_Idioma = 'Portugues'; // <--- Idioma em que se deseja apresentar os slides depois do reload (sem acento). Valores possíveis:\n"
-    else:
-        script_lines[26] = f"let vG_Idioma = 'Ingles'; // <--- Idioma em que se deseja apresentar os slides depois do reload (sem acento). Valores possíveis:\n"
+        if not narrative:
+            script_lines[26] = f"let vG_Idioma = 'Portugues'; // <--- Idioma em que se deseja apresentar os slides depois do reload (sem acento). Valores possíveis:\n"
+        else:
+            script_lines[26] = f"let vG_Idioma = 'Ingles'; // <--- Idioma em que se deseja apresentar os slides depois do reload (sem acento). Valores possíveis:\n"
 
-    script_lines[29] = f"LET vG_MesAnalise = '{month_analysis}';          // não -> padrão \n"
-    
+        script_lines[29] = f"LET vG_MesAnalise = '{month_analysis}';          // não -> padrão \n"
+        
     with open(script_path, 'w', encoding='utf-8') as f:
         f.writelines(script_lines)
 
     logger.info(f'Editou o arquivo do qlik pra rodar a empresa {company_name}')
 
 
-def init_browser(download_path):
+def init_browser(download_path='.'):
     service = Service()
     chrome_options = Options()
     chrome_options.add_experimental_option('prefs', {
