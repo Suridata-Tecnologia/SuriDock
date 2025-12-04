@@ -33,6 +33,7 @@ class Sentinel():
 
     def __organize_environment(self):
         self.__discord_message('Editando script do qlik', 0)
+        Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Processamento').run()
         edit_script_qvs(
             script_path=self.script_path,
             company_name=self.mj['company_name'],
@@ -51,7 +52,7 @@ class Sentinel():
     
     def __control_qlik(self):
         self.__discord_message('Navegando entre as páginas do qlik', 50)
-        navigate_to_process(self.driver, self.wait, self.agent_number)
+        navigate_to_process(self.driver, self.wait, self.agent_number, sentinel=True)
         self.__discord_message('Aguardando qlik processar a operadora', 75)
         if not process_company(self.driver):
             Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Erros').run()
@@ -67,4 +68,4 @@ class Sentinel():
     def run(self):
         self.__organize_environment()
         self.__init_browser()
-        self.__control_qlik()
+        return self.__control_qlik()

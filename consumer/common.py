@@ -240,18 +240,21 @@ def init_browser(download_path='.'):
     return webdriver.Chrome(service=service, options=chrome_options)
 
 
-def navigate_to_process(driver, wait, agent_number):
+def navigate_to_process(driver, wait, agent_number, sentinel=False):
     driver.get('http://localhost:4848/hub/my/work')
     driver.maximize_window()
-
+    
     try: # colocado um try por conta do spam não aparecer a vezes
         wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div/div/div/div[2]/div[1]/button/span')))
         driver.find_element(By.XPATH, '/html/body/div[2]/div/div/div/div[2]/div[1]/button/span').click()
     except:
         pass
 
-    # clicando no app
-    driver.find_element(By.XPATH, f'/html/body/div[1]/main/div/div/div[2]/div/div/div/div/ul/li[{agent_number}]/div/div[3]/div[1]').click()
+    # clicando no app correto de acordo com o agente e se é sentinel ou não
+    app_number = agent_number + 3 if sentinel else agent_number - 1
+    apps = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.hub-ul.qv-grid.ng-scope > li')))
+    apps[app_number].click()  # Seleciona o app desejado
+    driver.switch_to.window(driver.window_handles[1])
     sleep(5)
 
     # seleciona a nova guia (app) que foi aberta
@@ -261,6 +264,18 @@ def navigate_to_process(driver, wait, agent_number):
     wait.until(EC.presence_of_element_located((By.ID, 'navigation-dropdown-button'))).click() # Dropdown: Pasta
     wait.until(EC.presence_of_element_located((By.ID, 'navlist-item-dataSpaceScriptEditor'))).click() # Botão do dropdown "Editor da carga de dados"
     sleep(5)
+
+
+def find_id_of_button(driver):
+        for x in range(5, 15):
+            try:
+                # Botão do qlik "Continuar editando"
+                button = driver.find_element(By.XPATH, f'/html/body/div[{x}]/div[3]/div/div[2]/div/div/button')
+                return button, x
+            except:
+                pass
+
+        return None, None
 
 
 def process_company(driver):
@@ -277,10 +292,12 @@ def process_company(driver):
     while True:
         sleep(10)
         try:
-            # Botão do qlik "Continuar editando"
-            button = driver.find_element(By.XPATH, '/html/body/div[9]/div[3]/div/div[2]/div/div/button')
+            button, id_div = find_id_of_button(driver)
+            if not button and not id_div:
+                continue
+
             try:
-                error = driver.find_element(By.XPATH, '/html/body/div[9]/div[3]/div/div[1]/div/div[1]/p')
+                error = driver.find_element(By.XPATH, f'/html/body/div[{id_div}]/div[3]/div/div[1]/div/div[1]/p')
                 if error.text.lower() == 'carga de dados não concluída.':
                     driver.quit()
                     return False
