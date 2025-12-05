@@ -1,5 +1,5 @@
-from common     import close_all_qlik_process
 from consumer   import start_consumer
+from common     import *
 
 import pyfiglet
 import argparse
@@ -19,4 +19,10 @@ if agent_number >= 5 or agent_number <= 0:
 
 print(pyfiglet.figlet_format('SuriDock', font='slant'))
 close_all_qlik_process()
-start_consumer(agent_number)
+
+while True:
+    try:
+        start_consumer(agent_number)
+    except Exception as error:
+        logger.error(f'Erro desconhecido: {error}')
+        sleep(30)
