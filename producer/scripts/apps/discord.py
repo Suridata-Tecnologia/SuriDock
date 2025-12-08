@@ -177,7 +177,15 @@ class DiscordBot:
             created_at = datetime.strptime(message_json['footer'], '%d/%m/%Y %H:%M:%S')
             time_now = datetime.strptime(datetime.now(fuso_brasilia).strftime('%d/%m/%Y %H:%M:%S'), '%d/%m/%Y %H:%M:%S')
             minutes = ceil((time_now - created_at).seconds / 60)
-            embed.set_footer(text=f'Concluído em {minutes} minutos')
+
+            if minutes <= 59:
+                embed.set_footer(text=f'Concluído em {minutes} {"minutos" if minutes > 1 else "minuto"}')
+            else:
+                hours = 0
+                while minutes > 59:
+                    minutes -= 60
+                    hours += 1
+                embed.set_footer(text=f'Concluído em {hours} {"horas" if hours > 1 else "hora"} e {minutes} {"minutos" if minutes > 1 else "minuto"}')
 
 
         # Caso já exista mensagem deste processo
