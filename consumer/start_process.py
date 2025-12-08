@@ -87,9 +87,9 @@ class StartProcess():
             if not qlik_app:
                 qlik_app = open_and_start_qlik(self.agent_number)
 
-            if not qlik_app:
-                logger.error('o Qlik não foi aberto e o processo não pode continuar')
-                return False
+            # if not qlik_app:
+            #     logger.error('o Qlik não foi aberto e o processo não pode continuar')
+            #     return False
 
             self.__set_state_agent('running')
 
