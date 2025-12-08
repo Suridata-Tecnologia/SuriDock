@@ -1,5 +1,7 @@
-from extensions.suridata_api import SuridataApi
-from extensions.trello       import Trello
+from extensions.cloud_storage   import GoogleStorage
+from extensions.suridata_api    import SuridataApi
+from extensions.trello          import Trello
+
 from common import *
 
 
@@ -45,15 +47,15 @@ class Sentinel():
 
 
     def __init_browser(self):
-        self.__discord_message('Abrindo navegador', 25)
+        self.__discord_message('Abrindo navegador', 20)
         self.driver = init_browser()
         self.wait = WebDriverWait(self.driver, 60)
 
     
     def __control_qlik(self):
-        self.__discord_message('Navegando entre as páginas do qlik', 50)
+        self.__discord_message('Navegando entre as páginas do qlik', 40)
         navigate_to_process(self.driver, self.wait, self.agent_number, sentinel=True)
-        self.__discord_message('Aguardando qlik processar a operadora', 75)
+        self.__discord_message('Aguardando qlik processar a operadora', 60)
         if not process_company(self.driver):
             Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Erros').run()
             self.__discord_message('Erro no qlik', 0, status='error')
@@ -61,11 +63,40 @@ class Sentinel():
         
         self.driver.quit()
         Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Validação').run()
-        self.__discord_message('Processo finalizado com sucesso', 100, status='success')
         return True
+    
+
+    def __move_to_storage(self):
+        self.__discord_message('Movendo arquivo para o storage', 80)
+
+        main_directory = self.qvd_path.joinpath('_Analises', 'Validação Automática')
+        backup_directory = main_directory.joinpath('Backup')
+
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        cloud_storage = GoogleStorage('suri-storage')
+
+        moved_file = False
+        for file in main_directory.glob('*.csv'):
+            if self.mj['company_name'].lower() in file.stem.lower():
+                new_filename = f'{current_date}_{file.name}'
+                cloud_storage.upload_file(file, new_filename, 'text/csv', 'validação_qlik')
+                file.rename(backup_directory.joinpath(new_filename))
+                moved_file = True
+                break
+
+        if moved_file:
+            self.__discord_message('Arquivo movido para o storage', 100, status='success')
+            return True
+        else:
+            self.__discord_message('Arquivo necessário não encontrado. não foi possível enviar para o storage', 0, status='error')
+            return False
+
 
 
     def run(self):
         self.__organize_environment()
         self.__init_browser()
-        return self.__control_qlik()
+        if self.__control_qlik():
+            return self.__move_to_storage()
+        
+        return False

@@ -187,7 +187,6 @@ class DiscordBot:
                     hours += 1
                 embed.set_footer(text=f'Concluído em {hours} {"horas" if hours > 1 else "hora"} e {minutes} {"minutos" if minutes > 1 else "minuto"}')
 
-
         # Caso já exista mensagem deste processo
         if message_json['message_id'] in self.active_embeds:
             info = self.active_embeds[message_json['message_id']]
