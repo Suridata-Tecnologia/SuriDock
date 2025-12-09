@@ -1,5 +1,7 @@
-from dotenv import load_dotenv
-from common import *
+from extensions.suridata_api    import SuridataApi
+from dotenv                     import load_dotenv
+from extensions.trello          import Trello
+from common                     import *
 
 import os
 
@@ -21,6 +23,9 @@ class RelatorioPPT():
         self.agent_number       = agent_number
         self.retry_count        = retry_count
         self.pretty_name        = pretty_name
+
+        if not self.mj['company_name']:
+            self.mj['company_name'] = SuridataApi().get_company_by_id(self.mj['company_id'])['drive_folder']
 
 
     def __discord_message(self, message, progress, status='running'):
@@ -46,6 +51,7 @@ class RelatorioPPT():
 
     def __organize_environment(self):
         self.__discord_message('editando script do qlik', 16)
+        self.__move_card_trello('Saúde: Gerar ppt + 1ª validação') # coluna de quando o processo inicia
         self.gestao_pos = has_gestao_pos(self.mj['company_name'])
         edit_script_qvs(
             script_path=self.script_path,
@@ -68,6 +74,11 @@ class RelatorioPPT():
             return False
         self.__discord_message('aguardando qlik exportar o ppt', 64)
         return navigate_to_export(self.driver, self.wait, self.mj['narrative'], self.gestao_pos)
+    
+
+    def __move_card_trello(self, list_target_name):
+        if self.mj['trello_card_id']:
+            Trello(card_id=self.mj['trello_card_id'], list_target_name=list_target_name).run()
 
 
     def __manager_qlik_and_move_to_drive(self):
@@ -78,12 +89,14 @@ class RelatorioPPT():
             self.__discord_message('esperando suripoint processar o arquivo', 80)
             if move_to_drive(self.qvd_path, self.mj['company_name'], is_audith, self.download_path, self.mj['narrative'], company_pretty_name):
                 self.__discord_message('relatório salvo no drive', 100, 'success')
+                self.__move_card_trello('Saúde: Gerar ppt + 1ª validação') # coluna de quando o processo é finalizado com sucesso
                 return True
             else:
                 self.__discord_message('erro no suripoint', 0, 'error')
         else:
             self.__discord_message('erro no qlik', 0, 'error')
         
+        self.__move_card_trello('Saúde: Review') # coluna de quando o processo falha
         return False
 
 

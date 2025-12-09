@@ -60,9 +60,14 @@ class DiscordBot:
         self._register_handlers()
         self._register_commands()
 
-        self.trello = Trello(
+        sentinel = self.trello = Trello(
             list_source_name='Operação: Aguardando Processamento',
             list_target_name='Operação: Processamento'
+        )
+
+        relatorioppt = self.trello = Trello(
+            list_source_name='Saúde: Processar PPT',
+            list_target_name='Saúde: Gerar ppt + 1ª validação'
         )
 
 

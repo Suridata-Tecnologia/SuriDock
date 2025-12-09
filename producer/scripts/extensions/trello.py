@@ -103,23 +103,42 @@ class Trello():
                     self.trello_move_card(card_id, target_id)
 
                     # Enviar mensagem ao RabbitMQ para iniciar processo
-                    payload = {
-                        'type_proccess': 'sentinel',
-                        'created_at': get_formated_time_now(),
-                        'company_name': None,
-                        'discord_user_id': None,
-                        'discord_message_id': None,
-                        'trello_card_id': card_id,
-                        'activity': None,
-                        'month_analysis': None,
-                        'audith': None,
-                        'narrative': None,
-                        'user_email': None,
-                        'mail_list': None,
-                        'discord_username': 'Bot - Sentinela',
-                        'company_id': card_name.split(' - ')[0]
-                    }
-                    Producer(payload).run()
+                    if 'operação: aguardando processamento' in self.list_source_name.lower():
+                        payload = {
+                            'type_proccess': 'sentinel',
+                            'created_at': get_formated_time_now(),
+                            'company_name': None,
+                            'discord_user_id': None,
+                            'discord_message_id': None,
+                            'trello_card_id': card_id,
+                            'activity': None,
+                            'month_analysis': None,
+                            'audith': None,
+                            'narrative': None,
+                            'user_email': None,
+                            'mail_list': None,
+                            'discord_username': f'Sentinela - Card {card_name.split(" - ")[0]}',
+                            'company_id': card_name.split(' - ')[0]
+                        }
+                        Producer(payload).run()
+                    elif 'saúde: processar ppt' in self.list_source_name.lower():
+                        payload = {
+                            'type_proccess': 'relatorioppt',
+                            'created_at': get_formated_time_now(),
+                            'company_name': None,
+                            'discord_user_id': None,
+                            'discord_message_id': None,
+                            'trello_card_id': card_id,
+                            'activity': None,
+                            'month_analysis': 'não',
+                            'audith': False,
+                            'narrative': False,
+                            'user_email': None,
+                            'mail_list': None,
+                            'discord_username': f'Relatório PPT - Card {card_name.split(" - ")[0]}',
+                            'company_id': card_name.split(' - ')[0]
+                        }
+                        Producer(payload).run()
 
                 # Esperar 5 segundos antes de consultar de novo
                 sleep(5)
