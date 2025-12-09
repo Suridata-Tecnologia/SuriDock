@@ -80,7 +80,12 @@ class Sentinel():
             if self.mj['company_name'].lower() in file.stem.lower():
                 new_filename = f'{current_date}_{file.name}'
                 cloud_storage.upload_file(file, new_filename, 'text/csv', 'validação_qlik')
-                file.rename(backup_directory.joinpath(new_filename))
+
+                backup_file = backup_directory.joinpath(new_filename)
+                if backup_file.exists():
+                    backup_file.unlink()
+
+                file.rename(backup_file)
                 moved_file = True
                 break
 
