@@ -264,11 +264,17 @@ def navigate_to_process(driver, wait, agent_number, sentinel=False):
 
     # seleciona a nova guia (app) que foi aberta
     driver.switch_to.window(driver.window_handles[1])
-    sleep(2)
+    sleep(10)
 
-    wait.until(EC.presence_of_element_located((By.ID, 'navigation-dropdown-button'))).click() # Dropdown: Pasta
-    wait.until(EC.presence_of_element_located((By.ID, 'navlist-item-dataSpaceScriptEditor'))).click() # Botão do dropdown "Editor da carga de dados"
-    sleep(5)
+    for _ in range(20):
+        try:
+            wait.until(EC.presence_of_element_located((By.ID, 'navigation-dropdown-button'))).click() # Dropdown: Pasta
+            wait.until(EC.presence_of_element_located((By.ID, 'navlist-item-dataSpaceScriptEditor'))).click() # Botão do dropdown "Editor da carga de dados"
+            break
+        except:
+            pass
+
+    sleep(10)
 
 
 def find_id_of_button(driver):
