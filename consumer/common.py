@@ -189,6 +189,11 @@ def get_path_script_qvs(qvd_path, agent_number, sentinel=False):
             script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-Sentinel3-agent{agent_number}.qvs')
         else:
             script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-prod3-bot{agent_number}.qvs')
+    elif MACHINE_NAME.lower() == 'produção 4':
+        if sentinel:
+            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-Sentinel4-agent{agent_number}.qvs')
+        else:
+            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-prod4-bot{agent_number}.qvs')
     else:
         logger.error(f'Máquina não identificada: {MACHINE_NAME}')
         quit()
