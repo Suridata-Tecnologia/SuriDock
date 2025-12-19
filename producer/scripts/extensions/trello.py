@@ -1,3 +1,5 @@
+from extensions.suridata_api    import SuridataApi
+from extensions.database        import Database
 from loguru                     import logger
 from time                       import sleep
 from common                     import *
@@ -96,6 +98,7 @@ class Trello():
                 for card in cards:
                     card_id = card['id']
                     card_name = card['name']
+                    company_name = SuridataApi().get_company_by_id(card_name.split(' - ')[0])['drive_folder']
 
                     logger.info(f'Card encontrado para processamento: {card_name} ({card_id})')
 
@@ -107,7 +110,7 @@ class Trello():
                         payload = {
                             'type_proccess': 'sentinel',
                             'created_at': get_formated_time_now(),
-                            'company_name': None,
+                            'company_name': company_name,
                             'discord_user_id': None,
                             'discord_message_id': None,
                             'trello_card_id': card_id,
@@ -122,23 +125,64 @@ class Trello():
                         }
                         Producer(payload).run()
                     elif 'saúde: processar ppt' in self.list_source_name.lower():
-                        payload = {
-                            'type_proccess': 'relatorioppt',
-                            'created_at': get_formated_time_now(),
-                            'company_name': None,
-                            'discord_user_id': None,
-                            'discord_message_id': None,
-                            'trello_card_id': card_id,
-                            'activity': None,
-                            'month_analysis': 'não',
-                            'audith': False,
-                            'narrative': False,
-                            'user_email': None,
-                            'mail_list': None,
-                            'discord_username': f'Relatório PPT - Card {card_name.split(" - ")[0]}',
-                            'company_id': card_name.split(' - ')[0]
-                        }
-                        Producer(payload).run()
+                        has_english = Database().get_language_by_company(company_name)
+                        if has_english:
+                            # Português
+                            payload = {
+                                'type_proccess': 'relatorioppt',
+                                'created_at': get_formated_time_now(),
+                                'company_name': company_name,
+                                'discord_user_id': None,
+                                'discord_message_id': None,
+                                'trello_card_id': card_id,
+                                'activity': None,
+                                'month_analysis': 'não',
+                                'audith': False,
+                                'narrative': False,
+                                'user_email': None,
+                                'mail_list': None,
+                                'discord_username': f'Relatório PPT - Card {card_name.split(" - ")[0]}',
+                                'company_id': card_name.split(' - ')[0]
+                            }
+                            Producer(payload).run()
+
+                            # Inglês
+                            payload = {
+                                'type_proccess': 'relatorioppt',
+                                'created_at': get_formated_time_now(),
+                                'company_name': company_name,
+                                'discord_user_id': None,
+                                'discord_message_id': None,
+                                'trello_card_id': card_id,
+                                'activity': None,
+                                'month_analysis': 'não',
+                                'audith': False,
+                                'narrative': True,
+                                'user_email': None,
+                                'mail_list': None,
+                                'discord_username': f'Relatório PPT - Card {card_name.split(" - ")[0]}',
+                                'company_id': card_name.split(' - ')[0]
+                            }
+                            Producer(payload).run()
+                        else:
+                            # Somente Português
+                            payload = {
+                                'type_proccess': 'relatorioppt',
+                                'created_at': get_formated_time_now(),
+                                'company_name': company_name,
+                                'discord_user_id': None,
+                                'discord_message_id': None,
+                                'trello_card_id': card_id,
+                                'activity': None,
+                                'month_analysis': 'não',
+                                'audith': False,
+                                'narrative': False,
+                                'user_email': None,
+                                'mail_list': None,
+                                'discord_username': f'Relatório PPT - Card {card_name.split(" - ")[0]}',
+                                'company_id': card_name.split(' - ')[0]
+                            }
+                            Producer(payload).run()
 
                 # Esperar 5 segundos antes de consultar de novo
                 sleep(5)

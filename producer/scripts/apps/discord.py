@@ -270,6 +270,7 @@ class DiscordBot:
                     )
 
                     channel.basic_ack(method.delivery_tag)
+                    sleep(2)
 
             except Exception as error:
                 time_to_sleep = 60
