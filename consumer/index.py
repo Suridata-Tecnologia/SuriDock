@@ -18,7 +18,8 @@ if agent_number >= 5 or agent_number <= 0:
 
 
 print(pyfiglet.figlet_format('SuriDock', font='slant'))
-close_all_qlik_process()
+close_process('chrome')
+close_process('qlik')
 
 while True:
     try:

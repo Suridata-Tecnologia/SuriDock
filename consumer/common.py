@@ -116,13 +116,13 @@ def open_and_start_qlik(agent_number):
     return False
 
 
-def close_all_qlik_process():
+def close_process(process_name):
     try:
         for proc in psutil.process_iter(['name']):
-            if 'qlik' in proc.name().lower():
+            if process_name in proc.name().lower():
                 proc.kill()
     except Exception as error:
-        logger.error(f'psutil não conseguiu fechar o qlik: {error}')
+        logger.error(f'psutil não conseguiu fechar o {process_name}: {error}')
 
 
 def is_qlik_running():

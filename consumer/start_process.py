@@ -74,8 +74,9 @@ class StartProcess():
                 logger.info(f'{agent.split('-')[0]} usando o qlik, portando o agent{self.agent_number} o manterá aberto.')
                 return False
             
-        logger.info(f'Nenhum agente usando o qlik, agent{self.agent_number} fechando qlik...')
-        close_all_qlik_process()
+        logger.info(f'Nenhum agente usando o qlik, agent{self.agent_number} fechando qlik e chrome...')
+        close_process('chrome')
+        close_process('qlik')
 
         return True
 
