@@ -68,7 +68,7 @@ class DiscordBot:
 
         relatorioppt = self.trello = Trello(
             list_source_name='Saúde: Processar PPT',
-            list_target_name='Saúde: Gerar ppt + 1ª validação'
+            list_target_name='Saúde: Processando PPT'
         )
 
 
