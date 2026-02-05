@@ -423,8 +423,10 @@ def get_pretty_name(company_name):
     return company_pretty_name, audit_date, suridata_product
 
 
-def need_audith(user_audith, company_pretty_name, audit_date, suridata_product):
+def need_audith(user_audith, company_pretty_name, audit_date, suridata_product, discord_user_id):
+    is_trello = False if discord_user_id else True
     is_audith = False
+
     if audit_date and suridata_product:
         month_from_db = audit_date.split('-')[1]
         month_current = str(datetime.now(fuso_brasilia).month).zfill(2)
@@ -452,14 +454,15 @@ def need_audith(user_audith, company_pretty_name, audit_date, suridata_product):
     else:
         logger.info(f'{company_pretty_name} - esse relatório não precisa de auditoria')
 
-    if not user_audith:
-        is_audith = False
-        logger.info(f'usuário alterou auditoria para: False')
-    elif user_audith:
-        is_audith = True
-        logger.info(f'usuário alterou auditoria para: True')
-    else:
-        logger.info(f'usuário não fez alterações na auditoria: {is_audith}')
+    if not is_trello:
+        if not user_audith:
+            is_audith = False
+            logger.info(f'usuário alterou auditoria para: False')
+        elif user_audith:
+            is_audith = True
+            logger.info(f'usuário alterou auditoria para: True')
+        else:
+            logger.info(f'usuário não fez alterações na auditoria: {is_audith}')
 
     return is_audith
 

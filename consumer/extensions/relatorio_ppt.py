@@ -86,7 +86,7 @@ class RelatorioPPT():
         if self.__control_qlik():
             wait_until_download_finish(self.download_path, self.driver)
             company_pretty_name, audit_date, suridata_product = get_pretty_name(self.mj['company_name'])
-            is_audith = need_audith(self.mj['audith'], company_pretty_name, audit_date, suridata_product)
+            is_audith = need_audith(self.mj['audith'], company_pretty_name, audit_date, suridata_product, self.mj['discord_user_id'])
             self.__discord_message('esperando suripoint processar o arquivo', 80)
             if move_to_drive(self.qvd_path, self.mj['company_name'], is_audith, self.download_path, self.mj['narrative'], company_pretty_name):
                 self.__discord_message('relatório salvo no drive', 100, 'success')
