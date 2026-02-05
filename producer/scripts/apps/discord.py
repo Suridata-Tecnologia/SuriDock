@@ -24,15 +24,16 @@ fuso_brasilia = ZoneInfo("America/Sao_Paulo")
 class DiscordBot:
     def __init__(self):
         # Carrega variáveis de ambiente
-        self.discord_id_channel_bots    = int(os.getenv('DISCORD_ID_CHANNEL_BOTS'))
-        self.rabbitmq_username          = os.getenv('RABBITMQ_USERNAME')
-        self.rabbitmq_password          = os.getenv('RABBITMQ_PASSWORD')
-        self.rabbitmq_messages          = os.getenv('RABBITMQ_MESSAGES')
-        self.discord_webhook            = os.getenv('DISCORD_WEBHOOK')
-        self.discord_token              = os.getenv('DISCORD_TOKEN')
-        self.rabbitmq_host              = os.getenv('RABBITMQ_HOST')
-        self.time_to_delete             = 180
-        self.active_embeds              = {}
+        self.discord_id_channel_bots     = int(os.getenv('DISCORD_ID_CHANNEL_BOTS'))
+        self.discord_id_channel_sentinel = int(os.getenv('DISCORD_ID_CHANNEL_SENTINEL'))
+        self.rabbitmq_username           = os.getenv('RABBITMQ_USERNAME')
+        self.rabbitmq_password           = os.getenv('RABBITMQ_PASSWORD')
+        self.rabbitmq_messages           = os.getenv('RABBITMQ_MESSAGES')
+        self.discord_webhook             = os.getenv('DISCORD_WEBHOOK')
+        self.discord_token               = os.getenv('DISCORD_TOKEN')
+        self.rabbitmq_host               = os.getenv('RABBITMQ_HOST')
+        self.time_to_delete              = 180
+        self.active_embeds               = {}
 
         # Discord
         intents = discord.Intents.default()
@@ -144,7 +145,12 @@ class DiscordBot:
     async def send_or_update_embed(self, message_json: dict):
         await self.discord_ready_event.wait()
 
-        channel = self.client.get_channel(self.discord_id_channel_bots)
+        channel_name = message_json.get('discord_channel', 'bots')
+        if channel_name == 'bots':
+            channel = self.client.get_channel(self.discord_id_channel_bots)
+        else:
+            channel = self.client.get_channel(self.discord_id_channel_sentinel)
+
         if not channel:
             logger.error('Canal do Discord não encontrado.')
             return

@@ -28,8 +28,9 @@ class RelatorioPPT():
             self.mj['company_name'] = SuridataApi().get_company_by_id(self.mj['company_id'])['drive_folder']
 
 
-    def __discord_message(self, message, progress, status='running'):
+    def __discord_message(self, message, progress, status='running', discord_channel='bots'):
         message_data = {
+            'discord_channel': discord_channel,
             'message_id': self.disc_message_id,
             'discord_username': self.mj['discord_username'],
             'company': self.mj['company_name'],
