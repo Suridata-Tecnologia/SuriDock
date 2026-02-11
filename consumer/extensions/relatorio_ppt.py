@@ -35,7 +35,7 @@ class RelatorioPPT():
             'discord_username': self.mj['discord_username'],
             'company': self.mj['company_name'],
             'type_process': self.pretty_name,
-            'english': 'Inglês' if self.mj['narrative'] else 'Português',
+            'english': 'Inglês :flag_us:' if self.mj['narrative'] else 'Português :flag_br:',
             'stage': message,
             'progress': progress,
             'status': status,
