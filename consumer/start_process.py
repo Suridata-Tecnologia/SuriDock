@@ -1,5 +1,6 @@
 from extensions.relatorio_ppt   import RelatorioPPT
 from extensions.sentinel        import Sentinel
+from extensions.storage         import Storage
 from common                     import *
 
 import traceback
@@ -17,12 +18,19 @@ class StartProcess():
 
         self.apps = {
             'relatorioppt': {'class': RelatorioPPT, 'pretty_name': 'Relatório PPT'},
-            'sentinel': {'class': Sentinel, 'pretty_name': 'Sentinela'}
+            'sentinel': {'class': Sentinel, 'pretty_name': 'Sentinela'},
+            'storage':  {'class': Storage, 'pretty_name': 'Storage'}
         }
 
 
     def __need_qlik(self):
-        need_qlik_list = ['relatorioppt', 'sentinel']
+        need_qlik_list = [
+            'relatorioppt',
+            'sentinel',
+            'storage',
+            '5page'
+        ]
+
         if self.message_json['type_proccess'] in need_qlik_list:
             return True
         
@@ -88,10 +96,6 @@ class StartProcess():
             if not qlik_app:
                 qlik_app = open_and_start_qlik(self.agent_number)
 
-            # if not qlik_app:
-            #     logger.error('o Qlik não foi aberto e o processo não pode continuar')
-            #     return False
-
             self.__set_state_agent('running')
 
             try:
@@ -106,6 +110,7 @@ class StartProcess():
                 operation_success = False
                 timeline_error = traceback.format_exc()
                 message_data = {
+                    'discord_channel': 'sentinel' if self.message_json['type_proccess'] == 'sentinel' else 'bots',
                     'message_id': self.disc_message_id,
                     'discord_username': self.message_json['discord_username'],
                     'company': self.message_json['company_name'],

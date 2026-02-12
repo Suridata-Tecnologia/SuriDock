@@ -57,9 +57,9 @@ class RelatorioPPT():
         edit_script_qvs(
             script_path=self.script_path,
             company_name=self.mj['company_name'],
-            narrative=self.mj['narrative'],
-            month_analysis=self.mj['month_analysis'],
-            gestao_pos=self.gestao_pos
+            activity='Processar' if self.gestao_pos else 'Analisar',
+            language='Ingles' if self.mj['narrative'] else 'Portugues',
+            month_analysis=self.mj['month_analysis']
         )
 
     def __init_browser(self):

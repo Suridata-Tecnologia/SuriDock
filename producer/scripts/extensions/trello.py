@@ -120,7 +120,7 @@ class Trello():
                             'narrative': None,
                             'user_email': None,
                             'mail_list': None,
-                            'discord_username': f'Sentinela - Card {card_name.split(" - ")[0]}',
+                            'discord_username': f'Trello - Card {card_name.split(" - ")[0]}',
                             'company_id': card_name.split(' - ')[0]
                         }
                         Producer(payload).run()
@@ -141,7 +141,7 @@ class Trello():
                                 'narrative': False,
                                 'user_email': None,
                                 'mail_list': None,
-                                'discord_username': f'Relatório PPT - Card {card_name.split(" - ")[0]}',
+                                'discord_username': f'Trello - Card {card_name.split(" - ")[0]}',
                                 'company_id': card_name.split(' - ')[0]
                             }
                             Producer(payload).run()
@@ -160,7 +160,7 @@ class Trello():
                                 'narrative': True,
                                 'user_email': None,
                                 'mail_list': None,
-                                'discord_username': f'Relatório PPT - Card {card_name.split(" - ")[0]}',
+                                'discord_username': f'Trello - Card {card_name.split(" - ")[0]}',
                                 'company_id': card_name.split(' - ')[0]
                             }
                             Producer(payload).run()
@@ -179,10 +179,28 @@ class Trello():
                                 'narrative': False,
                                 'user_email': None,
                                 'mail_list': None,
-                                'discord_username': f'Relatório PPT - Card {card_name.split(" - ")[0]}',
+                                'discord_username': f'Trello - Card {card_name.split(" - ")[0]}',
                                 'company_id': card_name.split(' - ')[0]
                             }
                             Producer(payload).run()
+                    elif 'operação: atualizar no portal (storage) 🎉' in self.list_source_name.lower():
+                        payload = {
+                            'type_proccess': 'storage',
+                            'created_at': get_formated_time_now(),
+                            'company_name': company_name,
+                            'discord_user_id': None,
+                            'discord_message_id': None,
+                            'trello_card_id': card_id,
+                            'activity': None,
+                            'month_analysis': None,
+                            'audith': None,
+                            'narrative': None,
+                            'user_email': None,
+                            'mail_list': None,
+                            'discord_username': f'Trello - Card {card_name.split(" - ")[0]}',
+                            'company_id': card_name.split(' - ')[0]
+                        }
+                        Producer(payload).run()
 
                 # Esperar 5 segundos antes de consultar de novo
                 sleep(5)

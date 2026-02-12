@@ -40,9 +40,9 @@ class Sentinel():
         edit_script_qvs(
             script_path=self.script_path,
             company_name=self.mj['company_name'],
-            narrative=False,
-            month_analysis='não',
-            gestao_pos=False,
+            activity='',
+            language='',
+            month_analysis='',
             sentinel=True
         )
 

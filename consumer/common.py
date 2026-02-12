@@ -201,29 +201,14 @@ def get_path_script_qvs(qvd_path, agent_number, sentinel=False):
     return script_path
 
 
-def edit_script_qvs(script_path, company_name, narrative, month_analysis, gestao_pos, sentinel=False):
+def edit_script_qvs(script_path, company_name, activity, language, month_analysis, sentinel=False):
     with open(script_path, 'r', encoding='utf-8') as f:
         script_lines = f.readlines()
 
-    if sentinel:
-        script_lines[10] = f"let vG_ClientName  = '{company_name.upper()}'; //<--- NOME DO CLIENTE EM LETA minúscula - conforme pasta do Drive\n"
-    else:
-        if not narrative:
-            gestao_pos = has_gestao_pos(company_name)
-        else:
-            gestao_pos = False
-
-        script_lines[10] = f"let vG_ClientName  = '{company_name.upper()}'; //<--- NOME DO CLIENTE EM LETA minúscula - conforme pasta do Drive\n"
-        if gestao_pos:
-            script_lines[13] = f"let vG_Atividadeda = 'Processar';  // o que você quer fazer?\n"
-        else:
-            script_lines[13] = f"let vG_Atividadeda = 'Analisar';  // o que você quer fazer?\n"
-
-        if not narrative:
-            script_lines[26] = f"let vG_Idioma = 'Portugues'; // <--- Idioma em que se deseja apresentar os slides depois do reload (sem acento). Valores possíveis:\n"
-        else:
-            script_lines[26] = f"let vG_Idioma = 'Ingles'; // <--- Idioma em que se deseja apresentar os slides depois do reload (sem acento). Valores possíveis:\n"
-
+    script_lines[10] = f"let vG_ClientName  = '{company_name.upper()}'; //<--- NOME DO CLIENTE EM LETA minúscula - conforme pasta do Drive\n"
+    if not sentinel:
+        script_lines[13] = f"let vG_Atividadeda = '{activity}';  // o que você quer fazer?\n"
+        script_lines[26] = f"let vG_Idioma = '{language}'; // <--- Idioma em que se deseja apresentar os slides depois do reload (sem acento). Valores possíveis:\n"
         script_lines[29] = f"LET vG_MesAnalise = '{month_analysis}';          // não -> padrão \n"
         
     with open(script_path, 'w', encoding='utf-8') as f:

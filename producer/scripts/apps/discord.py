@@ -3,6 +3,7 @@ from discord                        import app_commands
 from discord.ext                    import commands
 from datetime                       import datetime
 from zoneinfo                       import ZoneInfo
+from extensions.storage             import Storage
 from extensions.trello              import Trello
 from loguru                         import logger
 from time                           import sleep
@@ -71,6 +72,11 @@ class DiscordBot:
             list_target_name='Saúde: Processando PPT'
         )
 
+        storage = self.trello = Trello(
+            list_source_name='Operação: Atualizar no Portal (Storage) 🎉',
+            list_target_name='Operação: Atualizando no Portal (Storage)'
+        )
+
 
     # ----------------------------------------------------------
     # Handlers de eventos do Discord
@@ -123,6 +129,19 @@ class DiscordBot:
                     answer_to_user = f'os relatórios em inglês e português da empresa {empresa.upper()} já estão na fila ✋'
             else:
                 answer_to_user = RelatorioPPT(interaction.user.id, message.id, empresa, False, mes_analise, auditoria).run()
+
+            await interaction.followup.edit_message(message_id=message.id, content=f'{interaction.user.mention} {answer_to_user}')
+            await asyncio.sleep(self.time_to_delete)
+            await interaction.delete_original_response()
+    
+        
+        @self.tree.command(name="storage", description="Gera storage")
+        @app_commands.describe(empresa='Digite o nome da pasta em _QVD para gerar o storage')
+        async def storage(interaction: discord.Interaction, empresa: str):
+            await interaction.response.defer()
+            message = await interaction.followup.send(f'{interaction.user.mention} Processando sua solicitação...', ephemeral=False)
+
+            answer_to_user = Storage(interaction.user.id, message.id, empresa).run()
 
             await interaction.followup.edit_message(message_id=message.id, content=f'{interaction.user.mention} {answer_to_user}')
             await asyncio.sleep(self.time_to_delete)
