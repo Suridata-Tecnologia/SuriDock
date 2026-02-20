@@ -1,6 +1,7 @@
 from consumer   import start_consumer
 from common     import *
 
+import traceback
 import pyfiglet
 import argparse
 
@@ -25,5 +26,6 @@ while True:
     try:
         start_consumer(agent_number)
     except Exception as error:
-        logger.error(f'Erro desconhecido: {error}')
+        timeline_error = traceback.format_exc()
+        logger.error(f'Erro desconhecido: {timeline_error}')
         sleep(30)
