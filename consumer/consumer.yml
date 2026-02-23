@@ -11,15 +11,3 @@ apps:
     env:
       PYTHONIOENCODING: 'utf-8'
     autorestart: true
-  - name: 'Agent 03'
-    script: 'index.py'
-    args: '--agent 3'
-    env:
-      PYTHONIOENCODING: 'utf-8'
-    autorestart: true
-  - name: 'Agent 04'
-    script: 'index.py'
-    args: '--agent 4'
-    env:
-      PYTHONIOENCODING: 'utf-8'
-    autorestart: true
