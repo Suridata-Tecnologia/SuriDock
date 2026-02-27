@@ -1,5 +1,5 @@
-from pathlib      import Path
 from google.cloud import storage
+from pathlib      import Path
 
 
 class GoogleStorage:
