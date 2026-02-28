@@ -16,6 +16,7 @@ class Storage():
         if companies:
             for company in companies:
                 message_data = {
+                    'status': 'queued',
                     'type_proccess': 'storage',
                     'created_at': get_formated_time_now(),
                     'company_name': company,

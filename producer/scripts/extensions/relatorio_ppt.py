@@ -19,6 +19,7 @@ class RelatorioPPT():
         if companies:
             for company in companies:
                 message_data = {
+                    'status': 'queued',
                     'type_proccess': 'relatorioppt',
                     'created_at': get_formated_time_now(),
                     'company_name': company,
