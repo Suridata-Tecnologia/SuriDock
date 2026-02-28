@@ -7,7 +7,7 @@ import uuid
 
 
 load_dotenv()
-RABBITMQ_QUEUE      = os.getenv('RABBITMQ_QUEUE')
+RABBITMQ_QUEUE = os.getenv('RABBITMQ_QUEUE')
 
 
 def return_message(ch, method, retry_count, disc_message_id, headers, body):
