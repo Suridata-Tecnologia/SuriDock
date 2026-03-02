@@ -215,7 +215,7 @@ def edit_script_qvs(script_path, company_name, activity, language, month_analysi
     with open(script_path, 'w', encoding='utf-8') as f:
         f.writelines(script_lines)
 
-    logger.info(f'Editou o arquivo do qlik pra rodar a empresa {company_name}')
+    logger.info(f'Editou o arquivo {script_path} do qlik pra rodar a empresa {company_name}')
 
 
 def init_browser(download_path='.'):
