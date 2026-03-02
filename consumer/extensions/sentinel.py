@@ -1,12 +1,10 @@
-from extensions.google_cloud import GoogleStorage, GoogleFirestore
+from extensions.google_cloud import GoogleStorage
 from extensions.suridata_api import SuridataApi
 from extensions.trello       import Trello
 
 from common import *
 
 
-# GoogleFirestore().set_job('job_id', data=data_dict)
-# GoogleFirestore().delete_job('job_id')
 
 
 class Sentinel():

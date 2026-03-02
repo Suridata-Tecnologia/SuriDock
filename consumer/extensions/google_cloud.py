@@ -42,6 +42,16 @@ class GoogleFirestore:
         return db_content
     
 
+    def get_job(self, job_id: str) -> dict | None:
+        doc_ref = self.db.collection('jobs').document(job_id)
+        doc = doc_ref.get()
+
+        if not doc.exists:
+            return None
+
+        return doc.to_dict()
+    
+
     # Método que cria ou atualiza jobs no Firestore
     def set_job(self, job_id: str, data: dict, merge: bool = True): 
         doc_ref = self.db.collection('jobs').document(job_id)

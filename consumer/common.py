@@ -1,5 +1,6 @@
 from selenium.webdriver.support         import expected_conditions as EC
 from pathlib                            import Path, WindowsPath
+from extensions.google_cloud            import GoogleFirestore
 from selenium.webdriver.support.ui      import WebDriverWait
 from pywinauto.findwindows              import find_windows
 from pywinauto                          import Application
