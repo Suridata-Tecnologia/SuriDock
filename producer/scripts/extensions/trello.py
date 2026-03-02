@@ -108,6 +108,7 @@ class Trello():
                     # Enviar mensagem ao RabbitMQ para iniciar processo
                     if 'operação: aguardando processamento' in self.list_source_name.lower():
                         payload = {
+                            'status': 'queued',
                             'type_proccess': 'sentinel',
                             'created_at': get_formated_time_now(),
                             'company_name': company_name,
@@ -129,6 +130,7 @@ class Trello():
                         if has_english:
                             # Português
                             payload = {
+                                'status': 'queued',
                                 'type_proccess': 'relatorioppt',
                                 'created_at': get_formated_time_now(),
                                 'company_name': company_name,
@@ -148,6 +150,7 @@ class Trello():
 
                             # Inglês
                             payload = {
+                                'status': 'queued',
                                 'type_proccess': 'relatorioppt',
                                 'created_at': get_formated_time_now(),
                                 'company_name': company_name,
@@ -167,6 +170,7 @@ class Trello():
                         else:
                             # Somente Português
                             payload = {
+                                'status': 'queued',
                                 'type_proccess': 'relatorioppt',
                                 'created_at': get_formated_time_now(),
                                 'company_name': company_name,
@@ -185,6 +189,7 @@ class Trello():
                             Producer(payload).run()
                     elif 'operação: atualizar no portal (storage) 🎉' in self.list_source_name.lower():
                         payload = {
+                            'status': 'queued',
                             'type_proccess': 'storage',
                             'created_at': get_formated_time_now(),
                             'company_name': company_name,

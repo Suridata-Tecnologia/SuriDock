@@ -1,4 +1,5 @@
 chromedriver-autoinstaller
+google-cloud-firestore
 google-cloud-storage
 mysql-connector
 python-dotenv

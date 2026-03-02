@@ -1,8 +1,8 @@
-from extensions.cloud_storage   import GoogleStorage
-from extensions.suridata_api    import SuridataApi
-from dotenv                     import load_dotenv
-from extensions.trello          import Trello
-from common                     import *
+from extensions.google_cloud import GoogleStorage
+from extensions.suridata_api import SuridataApi
+from dotenv                  import load_dotenv
+from extensions.trello       import Trello
+from common                  import *
 
 import os
 

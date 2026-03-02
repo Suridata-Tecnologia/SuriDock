@@ -1,3 +1,4 @@
+from extensions.google_cloud        import GoogleFirestore
 from google.oauth2.service_account  import Credentials
 from datetime                       import datetime
 from zoneinfo                       import ZoneInfo
@@ -6,6 +7,7 @@ from googleapiclient.discovery      import build
 
 import pika
 import json
+import uuid
 import os
 
 
@@ -109,7 +111,13 @@ class SplitCompanies():
 
 class Producer():
     def __init__(self, message_data):
+        self.job_id = str(uuid.uuid4())
         self.message_dict = message_data
+
+
+    def __send_to_firestore(self):
+        GoogleFirestore().set_job(self.job_id, data=self.message_dict)
+
 
     def __connection_rabbitmq(self):
         credentials = pika.PlainCredentials(
@@ -137,7 +145,7 @@ class Producer():
         self.channel.basic_publish(
             exchange='',
             routing_key=suridata_queue,
-            body=json.dumps(self.message_dict).encode('utf-8')
+            body=json.dumps({'job_id': self.job_id}).encode('utf-8')
         )
 
         logger.info('Fechando conexão com RabbitMQ')
@@ -145,6 +153,7 @@ class Producer():
 
 
     def run(self):
+        self.__send_to_firestore()
         self.__connection_rabbitmq()
         self.__send_message_rabbitmq()
 

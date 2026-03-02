@@ -1,13 +1,11 @@
-from start_process  import StartProcess
-from functools      import partial
-from common         import *
-
-import uuid
+from start_process              import StartProcess
+from functools                  import partial
+from common                     import *
 
 
 
 load_dotenv()
-RABBITMQ_QUEUE      = os.getenv('RABBITMQ_QUEUE')
+RABBITMQ_QUEUE = os.getenv('RABBITMQ_QUEUE')
 
 
 def return_message(ch, method, retry_count, disc_message_id, headers, body):
@@ -32,20 +30,19 @@ def return_message(ch, method, retry_count, disc_message_id, headers, body):
 
 def get_retry_message(headers):
     retry_count = headers.get('x-retry-count', 0)
-    disc_message_id = headers.get('disc_message_id', str(uuid.uuid4()))
-    return retry_count, disc_message_id
+    return retry_count
 
 
 def callback(ch, method, properties, body, agent_number):
     headers = properties.headers or {}
-    retry_count, disc_message_id = get_retry_message(headers)
+    retry_count = get_retry_message(headers)
     message_json = json.loads(body.decode('utf-8'))
-    success = StartProcess(agent_number, retry_count, disc_message_id, message_json).run()
+    success = StartProcess(agent_number, retry_count, message_json['job_id']).run()
 
     if success:
         ch.basic_ack(delivery_tag = method.delivery_tag)
     else:
-        return_message(ch, method, retry_count, disc_message_id, headers, body)
+        return_message(ch, method, retry_count, message_json['job_id'], headers, body)
 
 
 def start_consumer(agent):

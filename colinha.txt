@@ -1,72 +1,77 @@
 0
+status
+queued, running, failed, cancelled, completed
+usado no Firestore para saber o estado da solicitação
+
+1
 type_proccess
 é o tipo de processo
 usado para saber qual processo o bot precisa rodar
 
-1
+2
 created_at
 Data e Horario que a mensagem foi adicionada na fila
 usado para calcular quanto tempo demorou para o processo ficar pronto
 
-2
+3
 company_name
 nome da empresa
 usado para saber qual pasta do drive o bot vai fazer alterações
 
-3
+4
 discord_user_id
 ID do usuário no discord de quem pediu o processo
 usado para saber quem pediu o comando e para responder o usuário
 
-4
+5
 discord_message_id
 ID da mensagem do discord enviada pelo bot
 usado para modificar as mensagens e informar o usuário sobre o que o bot esta fazendo
 
-5
+6
 trello_card_id
 ID do card no trello
 usado para mover e comentar os cards do trello
 
-6
+7
 activity
 atividade
 usado para alterar a linha 14 do script do qlik
 
-7
+8
 month_analysis
 Mês de analise
 O período que o usuário solicitou para analisar ao rodar o qlik
 
-8
+9
 audith
 Auditoria
 Um booleano que diz se o usuário quer rodar a empresa com auditoria
 
-9
+10
 narrative
 História do qlik
 usado para selecionar se vai gerar relatório em português, inglês ou pós pagamento
 
-10
+11
 user_email
 Email do usuário
 usado para enviar emails a partir do usuário
 
-11
+12
 mail_list
 lista de emails
 essa é a lista dos destinatários que receberão os emails
 
-12
+13
 discord_username
 Nome do usuário no discord
 usado para mencionar o usuário nas mensagens do discord
 
-13
+14
 company_id
 ID da empresa
 usado para identificar qual empresa o bot precisa rodar
 
 template
-type_proccess ## created_at ## company_name ## discord_user_id ## discord_message_id ## trello_card_id ## activity ## month_analysis ## audith ## narrative ## user_email ## mail_list ## discord_username ## company_id
+status ## type_proccess ## created_at ## company_name ## discord_user_id ## discord_message_id ## trello_card_id ## activity ## month_analysis ## audith ## narrative ## user_email ## mail_list ## discord_username ## company_id
