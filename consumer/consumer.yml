@@ -11,3 +11,8 @@ apps:
     env:
       PYTHONIOENCODING: 'utf-8'
     autorestart: true
+  - name: 'Restart'
+    script: 'restart.py'
+    env:
+      PYTHONIOENCODING: 'utf-8'
+    autorestart: true
