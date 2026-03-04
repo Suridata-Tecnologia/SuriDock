@@ -1,4 +1,5 @@
 from extensions.relatorio_ppt       import RelatorioPPT
+from extensions.manager_queue       import ManagerQueue
 from discord                        import app_commands
 from discord.ext                    import commands
 from datetime                       import datetime
@@ -100,10 +101,12 @@ class DiscordBot:
     # Slash commands do Discord
     # ----------------------------------------------------------
     def _register_commands(self):
-        @self.tree.command(name="ping", description="Retorna uma resposta de teste.")
-        async def ping(interaction: discord.Interaction):
+        @self.tree.command(name="ver_fila", description="Retorna uma lista de empresas em processamento e aguardando na fila.")
+        async def ver_fila(interaction: discord.Interaction):
             await interaction.response.defer()
             message = await interaction.followup.send(f'{interaction.user.mention} Processando sua solicitação...', ephemeral=False)
+
+            embed = ManagerQueue().run()
             await interaction.followup.edit_message(message_id=message.id, content=f'{interaction.user.mention} Pong!')
             await asyncio.sleep(self.time_to_delete)
             await interaction.delete_original_response()
