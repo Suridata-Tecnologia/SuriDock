@@ -9,7 +9,6 @@ import traceback
 
 class StartProcess():
     def __init__(self, agent_number, retry_count, job_id):
-        self.firestore_data     = GoogleFirestore().get_job(job_id)
         self.agent_number       = agent_number
         self.retry_count        = retry_count
         self.job_id             = job_id
@@ -24,6 +23,7 @@ class StartProcess():
 
 
     def __need_run(self):
+        self.firestore_data = GoogleFirestore().get_job(self.job_id)
         if self.firestore_data['status'] == 'cancelled':
             return False
         
@@ -139,8 +139,14 @@ class StartProcess():
             self.__close_qlik()
 
             if operation_success:
+                if not self.__need_run():
+                    return True
+                
                 GoogleFirestore().set_job(self.job_id, {'status': 'completed'})
                 return True
+        
+        if not self.__need_run():
+            return True
         
         GoogleFirestore().set_job(self.job_id, {'status': 'failed'})
         return False
