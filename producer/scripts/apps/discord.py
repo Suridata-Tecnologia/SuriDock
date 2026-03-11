@@ -11,6 +11,7 @@ from time                           import sleep
 from math                           import ceil
 
 import threading
+import traceback
 import requests
 import asyncio
 import discord
@@ -97,17 +98,85 @@ class DiscordBot:
             self.discord_ready_event.set()
 
 
+    def _set_embed_from_queue(self):
+        list_process = ManagerQueue().get_queued_and_running()
+
+        if not list_process:
+            return None
+        
+        # Empresa - Tipo de Processo - Status
+        pretty_name = {
+            'queued':       'Na fila',
+            'running':      'Processando',
+            'sorage':       'Storage',
+            'sentinel':     'Sentinela'
+        }
+
+        embed = discord.Embed(
+            title=f'Segue a lista com a atual fila de processos',
+            color=discord.Color.green()
+        )
+
+        formated_process = {
+            'company_name': '',
+            'type_proccess': '',
+            'status': ''
+        }
+
+        for process in list_process:
+            flag = ':flag_us:' if process[1]['narrative'] else ':flag_br:'
+            formated_process['company_name'] += f'{process[1]['company_name']}\n'
+            formated_process['type_proccess'] += f'{pretty_name[process[1]['type_proccess']]}\n' if process[1]['type_proccess'] != 'relatorioppt' else f'Relatório {flag}\n'
+            formated_process['status'] += f'{pretty_name[process[1]['status']]}\n'
+
+        
+        embed.add_field(name='Empresa', value=formated_process['company_name']) # ver o que é o inline=True
+        embed.add_field(name='Tipo de solicitação', value=formated_process['type_proccess'])
+        embed.add_field(name='Status', value=formated_process['status'])
+
+        return embed
+    
+
+    def _cancel_company_from_firestore(self, companies):
+        list_process = ManagerQueue().get_queued_and_running()
+        companies = companies.split(',')
+        cancelled = False
+
+        for company in companies:
+            company = company.strip().lower()
+            for process in list_process:
+                if company == process[1]['company_name'].lower():
+                    ManagerQueue().cancel_job(process[0])
+                    cancelled = True
+
+        return cancelled
+
+
     # ----------------------------------------------------------
     # Slash commands do Discord
     # ----------------------------------------------------------
     def _register_commands(self):
         @self.tree.command(name="ver_fila", description="Retorna uma lista de empresas em processamento e aguardando na fila.")
         async def ver_fila(interaction: discord.Interaction):
-            await interaction.response.defer()
-            message = await interaction.followup.send(f'{interaction.user.mention} Processando sua solicitação...', ephemeral=False)
+            embed = self._set_embed_from_queue()
+            if not embed:
+                await interaction.response.send_message(f'{interaction.user.mention} não há solicitações na fila', ephemeral=False)
+            else:
+                await interaction.response.send_message(embed=embed, ephemeral=False)
 
-            embed = ManagerQueue().run()
-            await interaction.followup.edit_message(message_id=message.id, content=f'{interaction.user.mention} Pong!')
+            await asyncio.sleep(self.time_to_delete)
+            await interaction.delete_original_response()
+
+
+        @self.tree.command(name="remover_fila", description="Remove empresas da fila de processos")
+        async def remover_fila(interaction: discord.Interaction, empresas: str):
+            cancelled = self._cancel_company_from_firestore(empresas)
+
+            if cancelled:
+                await interaction.response.send_message(f'{interaction.user.mention} empresa removida da fila', ephemeral=False)
+            else:
+                await interaction.response.send_message(f'{interaction.user.mention} nenhuma empresa removida da fila', ephemeral=False)
+            
             await asyncio.sleep(self.time_to_delete)
             await interaction.delete_original_response()
 
@@ -302,8 +371,10 @@ class DiscordBot:
 
             except Exception as error:
                 time_to_sleep = 60
-                error_message = f'Erro ao se conectar no RabbitMQ: {error}. Tentando novamente em {time_to_sleep}s...'
+                error_message = f'Erro ao se conectar no RabbitMQ, Tentando novamente em {time_to_sleep}s...'
+                timeline_error = traceback.format_exc()
                 logger.error(error_message)
+                logger.error(timeline_error)
                 self.send_to_webhook(message=error_message)
                 sleep(time_to_sleep)
 

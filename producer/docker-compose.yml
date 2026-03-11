@@ -11,3 +11,5 @@ services:
       - ./scripts:/suridata_scripts
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    stdin_open: true # Allows keyboard input
+    tty: true        # Allocates a pseudo-TTY
