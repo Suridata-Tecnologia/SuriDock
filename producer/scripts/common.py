@@ -1,6 +1,6 @@
 from extensions.google_cloud        import GoogleFirestore
 from google.oauth2.service_account  import Credentials
-from datetime                       import datetime
+from datetime                       import datetime, time
 from zoneinfo                       import ZoneInfo
 from loguru                         import logger
 from googleapiclient.discovery      import build
@@ -131,8 +131,8 @@ class Producer():
                 host=host_rabbitmq,
                 port=5672,
                 credentials=credentials,
-                heartbeat=600,
-                blocked_connection_timeout=600,
+                heartbeat=9000,
+                blocked_connection_timeout=9000,
             )
         )
 

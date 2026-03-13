@@ -80,6 +80,18 @@ class Trello():
             return []
         
 
+    def can_read_trello(self, mode):
+        time_now = datetime.now()
+        if mode == 'storage':
+            begin = time(19, 0)
+            end = time(4, 0)
+        elif mode == '5page':
+            begin = time(5, 0)
+            end = time(18, 0)
+
+        return begin <= time_now <= end
+
+
     def _trello_watcher(self):
         logger.info('Thread do Trello iniciada.')
         source_id = self.get_list_id_by_name(self.list_source_name)
@@ -99,14 +111,11 @@ class Trello():
                     card_id = card['id']
                     card_name = card['name']
                     company_name = SuridataApi().get_company_by_id(card_name.split(' - ')[0])['drive_folder']
-
                     logger.info(f'Card encontrado para processamento: {card_name} ({card_id})')
 
-                    # Mover o card para lista 'Operação: Processamento'
-                    self.trello_move_card(card_id, target_id)
-
-                    # Enviar mensagem ao RabbitMQ para iniciar processo
+                    # Enviar mensagem ao RabbitMQ e Firestore
                     if 'operação: aguardando processamento' in self.list_source_name.lower():
+                        self.trello_move_card(card_id, target_id)
                         payload = {
                             'status': 'queued',
                             'type_proccess': 'sentinel',
@@ -126,6 +135,7 @@ class Trello():
                         }
                         Producer(payload).run()
                     elif 'saúde: processar ppt' in self.list_source_name.lower():
+                        self.trello_move_card(card_id, target_id)
                         has_english = Database().get_language_by_company(company_name)
                         if has_english:
                             # Português
@@ -187,7 +197,8 @@ class Trello():
                                 'company_id': card_name.split(' - ')[0]
                             }
                             Producer(payload).run()
-                    elif 'operação: atualizar no portal (storage) 🎉' in self.list_source_name.lower():
+                    elif 'operação: atualizar no portal (storage) 🎉' in self.list_source_name.lower() and self.can_read_trello('storage'):
+                        self.trello_move_card(card_id, target_id)
                         payload = {
                             'status': 'queued',
                             'type_proccess': 'storage',
@@ -207,9 +218,9 @@ class Trello():
                         }
                         Producer(payload).run()
 
-                # Esperar 5 segundos antes de consultar de novo
-                sleep(5)
+                # Esperar 10 segundos antes de consultar de novo
+                sleep(10)
 
             except Exception as e:
                 logger.error(f'Erro na thread Trello: {e}')
-                sleep(5)
+                sleep(10)

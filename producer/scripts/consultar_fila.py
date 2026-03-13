@@ -9,8 +9,8 @@ def connection_rabbitmq():
             host=RABBITMQ_HOST,
             port=5672,
             credentials=credentials,
-            heartbeat=600,
-            blocked_connection_timeout=600,
+            heartbeat=9000,
+            blocked_connection_timeout=9000,
         )
     )
 
