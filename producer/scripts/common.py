@@ -31,7 +31,7 @@ class DriveAPI():
     def get_folders_drive_by_id(self, onlyFolder=True):
         logger.info(f'Iniciando busca no google drive usando o ID {self.parent_id}')
         creds = Credentials.from_service_account_file(
-            './apps/credentials/suridata-drive-access.json',
+            './credentials/suridata-drive-access.json',
             scopes=['https://www.googleapis.com/auth/drive']
         )
 
