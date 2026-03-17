@@ -24,6 +24,61 @@ import os
 fuso_brasilia = ZoneInfo("America/Sao_Paulo")
 
 
+
+class PageLayout(discord.ui.View):
+    def __init__(self, embeds, author_id):
+        super().__init__(timeout=60)
+        self.embeds = embeds
+        self.index = 0
+        self.author_id = author_id
+        self.message = None
+
+        self.update_buttons()
+
+    def get_current_embed(self):
+        embed = self.embeds[self.index]
+        embed.set_footer(text=f"Página {self.index+1}/{len(self.embeds)}")
+        return embed
+
+    def update_buttons(self):
+        self.previous.disabled = self.index == 0
+        self.next.disabled = self.index == len(self.embeds) - 1
+
+    async def update_message(self, interaction: discord.Interaction):
+        self.update_buttons()
+
+        await interaction.response.edit_message(
+            embed=self.get_current_embed(),
+            view=self
+        )
+
+    async def interaction_check(self, interaction: discord.Interaction):
+        return interaction.user.id == self.author_id
+
+    @discord.ui.button(label="⬅️", style=discord.ButtonStyle.primary)
+    async def previous(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.index > 0:
+            self.index -= 1
+        await self.update_message(interaction)
+
+    @discord.ui.button(label="➡️", style=discord.ButtonStyle.primary)
+    async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.index < len(self.embeds) - 1:
+            self.index += 1
+        await self.update_message(interaction)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except:
+                pass
+
+
+
 class DiscordBot:
     def __init__(self):
         # Carrega variáveis de ambiente
@@ -74,10 +129,10 @@ class DiscordBot:
             list_target_name='Saúde: Processando PPT'
         )
 
-        storage = self.trello = Trello(
-            list_source_name='Operação: Atualizar no Portal (Storage) 🎉',
-            list_target_name='Operação: Atualizando no Portal (Storage)'
-        )
+        # storage = self.trello = Trello(
+        #     list_source_name='Operação: Atualizar no Portal (Storage) 🎉',
+        #     list_target_name='Operação: Atualizando no Portal (Storage)'
+        # )
 
 
     # ----------------------------------------------------------
@@ -112,29 +167,42 @@ class DiscordBot:
             'sentinel':     'Sentinela'
         }
 
-        embed = discord.Embed(
-            title=f'Segue a lista com a atual fila de processos',
-            color=discord.Color.green()
-        )
+        max_lines = 10
+        number_messages = ceil(len(list_process)/max_lines)
+        formated_process = []
+        embed_list = []
 
-        formated_process = {
-            'company_name': '',
-            'type_proccess': '',
-            'status': ''
-        }
+        for _ in range(number_messages):
+            embed_list.append(discord.Embed(
+                title=f'Segue a lista com a atual fila de processos',
+                color=discord.Color.green()
+            ))
 
-        for process in list_process:
+            formated_process.append({
+                'company_name': '',
+                'type_proccess': '',
+                'status': ''
+            })
+
+        count = 0
+        message = 0
+        for process in list_process:                
             flag = ':flag_us:' if process[1]['narrative'] else ':flag_br:'
-            formated_process['company_name'] += f'{process[1]['company_name']}\n'
-            formated_process['type_proccess'] += f'{pretty_name[process[1]['type_proccess']]}\n' if process[1]['type_proccess'] != 'relatorioppt' else f'Relatório {flag}\n'
-            formated_process['status'] += f'{pretty_name[process[1]['status']]}\n'
+            formated_process[message]['company_name'] += f'{process[1]['company_name']}\n'
+            formated_process[message]['type_proccess'] += f'{pretty_name[process[1]['type_proccess']]}\n' if process[1]['type_proccess'] != 'relatorioppt' else f'Relatório {flag}\n'
+            formated_process[message]['status'] += f'{pretty_name[process[1]['status']]}\n'
 
-        
-        embed.add_field(name='Empresa', value=formated_process['company_name']) # ver o que é o inline=True
-        embed.add_field(name='Tipo de solicitação', value=formated_process['type_proccess'])
-        embed.add_field(name='Status', value=formated_process['status'])
+            count += 1
+            if count >= 10:
+                count = 0
+                message += 1
 
-        return embed
+        for x in range(number_messages):
+            embed_list[x].add_field(name='Empresa', value=formated_process[x]['company_name'])
+            embed_list[x].add_field(name='Tipo de solicitação', value=formated_process[x]['type_proccess'])
+            embed_list[x].add_field(name='Status', value=formated_process[x]['status'])
+
+        return embed_list
     
 
     def _cancel_company_from_firestore(self, companies):
@@ -158,14 +226,12 @@ class DiscordBot:
     def _register_commands(self):
         @self.tree.command(name="ver_fila", description="Retorna uma lista de empresas em processamento e aguardando na fila.")
         async def ver_fila(interaction: discord.Interaction):
-            embed = self._set_embed_from_queue()
-            if not embed:
+            embed_list = self._set_embed_from_queue()
+            if not embed_list:
                 await interaction.response.send_message(f'{interaction.user.mention} não há solicitações na fila', ephemeral=False)
             else:
-                await interaction.response.send_message(embed=embed, ephemeral=False)
-
-            await asyncio.sleep(self.time_to_delete)
-            await interaction.delete_original_response()
+                view = PageLayout(embed_list, interaction.user.id)
+                await interaction.response.send_message(embed=embed_list[0], view=view)
 
 
         @self.tree.command(name="remover_fila", description="Remove empresas da fila de processos")
