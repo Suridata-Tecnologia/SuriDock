@@ -52,7 +52,7 @@ class Storage():
 
 
     def __organize_environment(self):
-        self.__discord_message('editando script do qlik', 20)
+        self.__discord_message('editando script do qlik', 15)
         self.__move_card_trello('Operação: Atualizando no Portal (Storage)') # coluna de quando o processo inicia
         self.gestao_pos = has_gestao_pos(self.mj['company_name'])
         edit_script_qvs(
@@ -64,14 +64,14 @@ class Storage():
         )
 
     def __init_browser(self):
-        self.__discord_message('abrindo navegador', 40)
+        self.__discord_message('abrindo navegador', 30)
         self.driver = init_browser(self.download_path)
         self.wait = WebDriverWait(self.driver, 60)
 
 
     def __control_qlik(self):
         navigate_to_process(self.driver, self.wait, self.agent_number)
-        self.__discord_message('aguardando qlik processar a operadora', 60)
+        self.__discord_message('aguardando qlik processar a operadora', 45)
         if not process_company(self.driver):
             return False
         
@@ -79,7 +79,7 @@ class Storage():
     
 
     def __move_to_storage(self):
-        self.__discord_message('subindo os arquivos para o storage', 80)
+        self.__discord_message('subindo os arquivos para o storage', 60)
         bases_path = {
             'Base 10Maiores'     : self.qvd_path.joinpath('_Base Storage', 'Base 10Maiores'),
             'Base Auditoria'     : self.qvd_path.joinpath('_Base Storage', 'Base Auditoria'),
@@ -90,7 +90,7 @@ class Storage():
         }
 
         for base in bases_path:
-            for file in bases_path[base].glob(f'*{self.company_name}*'):
+            for file in bases_path[base].glob(f'*{self.mj["company_name"]}*'):
                 try:
                     cloud_storage = GoogleStorage(f'suri-storage')
                     cloud_storage.upload_file(file, file.name, 'text/csv', f'Extração Produção/{base}')
@@ -105,6 +105,31 @@ class Storage():
                 break
 
         return True
+
+
+    def __start_suripoint(self):
+        self.__discord_message('Aguardando os arquivos aparecer no storage', 75)
+        sleep(30)
+
+        logger.info(f'Iniciando start no suripoint...')
+        self.__discord_message('Clicando em "Play" no suripoint', 90)
+        try:
+            response = requests.post('https://suri-automate-gcs-sar7gmwfia-rj.a.run.app/start', timeout=3600)
+        except requests.exceptions.ReadTimeout:
+            response = None
+
+        if not response:
+            logger.error(f'Suripoint não respondeu, e provavelmente deu ruim')
+            return False
+        if response.status_code == 200:
+            logger.success(f'Suripoint rodou com sucesso!')
+            return True
+        elif response.status_code == 500:
+            logger.warning(f'Suripoint retornou 500 mas provavelmente funcionou: {response.text}')
+            return True
+        else:
+            logger.error(f'Erro ao rodar o Suripoint: {response.status_code} {response.text}')
+            return False
     
 
     def __move_card_trello(self, list_target_name):
@@ -115,11 +140,14 @@ class Storage():
     def __manager_qlik_and_move_to_storage(self):
         if self.__control_qlik():
             if self.__move_to_storage():
-                # espera x segundos
-                # da play no suripoint
-                self.__discord_message('Arquivos enviados para o storage', 100, 'success')
-                self.__move_card_trello('Saúde: Validação dados Portal 👀👀👀') # coluna de quando o processo da certo
-                return True
+                if self.__start_suripoint():
+                    self.__discord_message('Suripoint processou corretamente', 100, 'success')
+                    self.__move_card_trello('Saúde: Validação dados Portal 👀👀👀') # coluna de quando o processo da certo
+                    return True
+                else:
+                    self.__discord_message('Arquivos subiu para o storage mas o suripoint falhou', 0, 'error')
+                    self.__move_card_trello('Operação: Ajustes e Correções Portal') # coluna de quando o processo falha
+                    return False
             else:
                 self.__discord_message('erro ao subir os arquivos para o storage', 0, 'error')
                 self.__move_card_trello('Operação: Ajustes e Correções Portal') # coluna de quando o processo falha
