@@ -37,3 +37,24 @@ class GoogleFirestore:
 
         doc_ref.delete()
         return True
+    
+
+    def delete_jobs_batch(self, job_ids: list[str]) -> int:
+        batch = self.db.batch()
+        count = 0
+
+        for job_id in job_ids:
+            doc_ref = self.db.collection('jobs').document(job_id)
+            batch.delete(doc_ref)
+            count += 1
+
+            # Firestore limita em 500 operações por batch
+            if count % 500 == 0:
+                batch.commit()
+                batch = self.db.batch()
+
+        # Commit final (restante)
+        if count % 500 != 0:
+            batch.commit()
+
+        return count
