@@ -37,12 +37,12 @@ class Storage():
             if len(self.companies) == 1:
                 self.answer_to_user = f'sua solicitação para gerar o storage da empresa {self.companies[0]} foi adicionada na fila'
             else:
-                self.answer_to_user = f'as empresas a seguir foram adicionadas na fila \n{self.companies}'
+                self.answer_to_user = f'as empresas a seguir foram adicionadas na fila: {", ".join(self.companies)}'
         else:
             if len(self.companies) == 1:
                 self.answer_to_user = f'não encontrei a empresa {self.companies[0]}\nPor favor verifique se você digitou o nome da pasta em _QVD corretamente'
             else:
-                self.answer_to_user = f'as empresas a seguir não foram encontradas na pasta _QVD\n{self.companies}'
+                self.answer_to_user = f'as empresas a seguir não foram encontradas na pasta _QVD: {", ".join(self.companies)}'
 
 
     def run(self):
