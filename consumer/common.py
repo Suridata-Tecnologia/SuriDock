@@ -37,8 +37,8 @@ RABBITMQ_MESSAGES   = os.getenv('RABBITMQ_MESSAGES')
 fuso_brasilia = ZoneInfo("America/Sao_Paulo")
 logger.add('logs/script.log')
 
-link_to_suripoint = 'https://suripoint-backend-sar7gmwfia-ue.a.run.app' # Produção
-# link_to_suripoint = 'https://suripoint-backend-hom-sar7gmwfia-ue.a.run.app' # Homologação
+link_to_suripoint = 'https://suripoint-backend-87769041781.us-east1.run.app/' # Produção
+# link_to_suripoint = 'https://suripoint-backend-hom-87769041781.us-east1.run.app/' # Homologação
 
 
 def connection_rabbitmq():
@@ -464,36 +464,19 @@ def backup_to_drive(file, qvd_path, company_name):
 
 
 def run_in_suripoint(file, is_audith):
-    zip_file = file.parent.joinpath(file.stem + '.zip')
-    
+    ppt_file = file.parent.joinpath(file.name)
     files=[('file',(file.stem, open(file,'rb'),'application/vnd.openxmlformats-officedocument.presentationml.presentation'))]
+    response = requests.request('POST', f'{link_to_suripoint}/ppt/process', data={'isAudity': is_audith, 'originalFilename': file.name}, files=files)
 
-    response = requests.request('POST', f'{link_to_suripoint}/ppt/store', files=files)
-    sleep(2)
+    if response.status_code == 200:
+        response = requests.request('GET', response.json()['downloadLink'])
 
-    if is_audith:
-        response = requests.request('POST', f'{link_to_suripoint}/ppt/process', data={'isAudity': is_audith})
-    else:
-        # Se colocar data={'isAudity': False} o suripoint gera como auditoria
-        response = requests.request('POST', f'{link_to_suripoint}/ppt/process')
-    sleep(2)
+        with open(ppt_file, 'wb') as f:
+            f.write(response.content)
 
-    if type(response.json()['statusMessage']) == dict:
-        logger.info(f'o suripoint retornou um dicionário: {response.text}')
-        return False
-    
-    if 'não encontrado' in response.json()['statusMessage'].lower():
-        logger.error(f'Erro no suripoint: {response.text}')
-        return False
-    
-    response = requests.request('GET', f'{link_to_suripoint}/ppt/download')
+    logger.info(f'ppt baixado {ppt_file}')
 
-    with open(zip_file, 'wb') as f:
-        f.write(response.content)
-
-    logger.info(f'zip baixado {zip_file}')
-
-    return zip_file
+    return ppt_file
 
 
 def move_file(current_path, new_path, delete_on_move=True, backup_old_file=True):
@@ -581,65 +564,14 @@ def move_to_drive(qvd_path, company_name, is_audith, download_path, narrative, c
         logger.info(f'{file.name} renomeado para {file_name.name}')
         file.rename(file_name)
         file = file_name
+        logger.info(f'Criando backup {file.name}')
         backup_to_drive(file, qvd_path, company_name)
-        suripoint_error = True
 
-        while suripoint_error:
-            for _ in range(4):
-                try:
-                    for _ in range(4):
-                        logger.info(f'Mandando o arquivo {file.name} para o suripoint')
-                        zip_file = run_in_suripoint(file, is_audith)
-                        if not zip_file:
-                            sleep(10)
-                        else:
-                            break
-
-                    if not zip_file:
-                        logger.error('o suripoint não retornou o zip')
-                        save_on_drive(qvd_path, company_name, file)
-                        return False
-                    
-                    logger.info('o suripoint retornou o zip')
-
-                except Exception as error:
-                    logger.error(f'Ocorreu um erro ao rodar o suripoint: {str(error)}')
-                    save_on_drive(qvd_path, company_name, file)
-                    return False
-                
-                try:
-                    unzip(zip_file, zip_file.parent, remove_on_extract=True)
-                except Exception as error:
-                    logger.error(f'Ocorreu um erro ao descompactar o ZIP: {str(error)}')
-
-                new_file = None
-                for unziped_file in file.parent.glob('*.pptx'):
-                    if unziped_file.name != file.name:
-                        new_file = unziped_file
-                        break
-
-                aceppt_companies = ['magalu_bra', 'magalu_fesp','magalu_gndi','magalu_hap','magalu_sfran']
-                if new_file:
-                    if 'magalu' in new_file.stem.lower() and company_name.lower() not in aceppt_companies:
-                        new_file.unlink()
-                        logger.error(f'O ZIP veio com o arquivo incorreto: {new_file.stem} - {company_name}')
-                        suripoint_error = True
-                    else:
-                        logger.success(f'O ZIP veio com o arquivo correto: {new_file.stem} - {company_name}')
-                        file.unlink()
-                        suripoint_error = False
-                        break
-                else:
-                    logger.error('O ZIP veio corrompido ou não foi descompactado corretamente')
-
-        if not new_file:
-            logger.error('não existe arquivo dentro do zip')
-            save_on_drive(qvd_path, company_name, file)
-            return False
-        else:
-            destination = qvd_path.joinpath(company_name, 'base', new_file.name)
-            logger.info(f'Movendo para o drive: {destination}')
-            return move_file(new_file, destination)
+        logger.info(f'Mandando o arquivo {file.name} para o suripoint')
+        ppt_file = run_in_suripoint(file, is_audith)
+        destination = qvd_path.joinpath(company_name, 'base', ppt_file.name)
+        logger.info(f'Movendo para o drive: {destination}')
+        return move_file(ppt_file, destination)
             
     logger.error(f'não existe ppt na pasta de download, provavelmente o qlik esta com problemas para baixar e precisa ser reiniciado')
     return False
