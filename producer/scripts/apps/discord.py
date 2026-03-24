@@ -4,6 +4,7 @@ from discord                        import app_commands
 from discord.ext                    import commands
 from datetime                       import datetime
 from zoneinfo                       import ZoneInfo
+from extensions.FivePage            import FivePage
 from extensions.storage             import Storage
 from extensions.trello              import Trello
 from loguru                         import logger
@@ -280,6 +281,18 @@ class DiscordBot:
             message = await interaction.followup.send(f'{interaction.user.mention} Processando sua solicitação...', ephemeral=False)
 
             answer_to_user = Storage(interaction.user.id, message.id, empresa).run()
+
+            await interaction.followup.edit_message(message_id=message.id, content=f'{interaction.user.mention} {answer_to_user}')
+            await asyncio.sleep(self.time_to_delete)
+            await interaction.delete_original_response()
+
+
+        @self.tree.command(name="5page", description="Gera o 5page")
+        @app_commands.describe(empresa='Digite o nome da pasta em _QVD para gerar o 5page')
+        async def fivepage(interaction: discord.Interaction, empresa: str, capa_escura: bool = False):
+            await interaction.response.defer()
+            message = await interaction.followup.send(f'{interaction.user.mention} Processando sua solicitação...', ephemeral=False)
+            answer_to_user = FivePage(interaction.user.id, message.id, empresa, capa_escura).run()
 
             await interaction.followup.edit_message(message_id=message.id, content=f'{interaction.user.mention} {answer_to_user}')
             await asyncio.sleep(self.time_to_delete)

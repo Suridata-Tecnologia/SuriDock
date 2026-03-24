@@ -73,5 +73,7 @@ company_id
 ID da empresa
 usado para identificar qual empresa o bot precisa rodar
 
-template
-status ## type_proccess ## created_at ## company_name ## discord_user_id ## discord_message_id ## trello_card_id ## activity ## month_analysis ## audith ## narrative ## user_email ## mail_list ## discord_username ## company_id
+15
+darkmode
+modo escuro
+usado para gerar 5page com capa clara ou escura
