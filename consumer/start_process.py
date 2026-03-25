@@ -1,5 +1,6 @@
 from extensions.relatorio_ppt   import RelatorioPPT
 from extensions.sentinel        import Sentinel
+from extensions.five_page       import FivePage
 from extensions.storage         import Storage
 from common                     import *
 
@@ -18,7 +19,8 @@ class StartProcess():
         self.apps = {
             'relatorioppt': {'class': RelatorioPPT, 'pretty_name': 'Relatório PPT'},
             'sentinel': {'class': Sentinel, 'pretty_name': 'Sentinela'},
-            'storage':  {'class': Storage, 'pretty_name': 'Storage'}
+            'storage':  {'class': Storage, 'pretty_name': 'Storage'},
+            'fivepage':  {'class': FivePage, 'pretty_name': '5page'}
         }
 
 

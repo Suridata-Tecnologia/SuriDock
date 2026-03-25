@@ -1,5 +1,6 @@
 from selenium.webdriver.support         import expected_conditions as EC
 from pathlib                            import Path, WindowsPath
+from urllib.parse                       import urlparse, unquote
 from extensions.google_cloud            import GoogleFirestore
 from selenium.webdriver.support.ui      import WebDriverWait
 from pywinauto.findwindows              import find_windows
@@ -464,12 +465,15 @@ def backup_to_drive(file, qvd_path, company_name):
 
 
 def run_in_suripoint(file, is_audith):
-    ppt_file = file.parent.joinpath(file.name)
+    ppt_file = file.parent
     files=[('file',(file.stem, open(file,'rb'),'application/vnd.openxmlformats-officedocument.presentationml.presentation'))]
     response = requests.request('POST', f'{link_to_suripoint}/ppt/process', data={'isAudity': is_audith, 'originalFilename': file.name}, files=files)
 
     if response.status_code == 200:
-        response = requests.request('GET', response.json()['downloadLink'])
+        url = response.json()['downloadLink']
+        file_name = unquote(urlparse(url).path.split('/')[-1])
+        ppt_file.joinpath(file_name)
+        response = requests.request('GET', url)
 
         with open(ppt_file, 'wb') as f:
             f.write(response.content)
