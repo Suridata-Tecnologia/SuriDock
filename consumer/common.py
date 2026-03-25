@@ -472,7 +472,7 @@ def run_in_suripoint(file, is_audith):
     if response.status_code == 200:
         url = response.json()['downloadLink']
         file_name = unquote(urlparse(url).path.split('/')[-1])
-        ppt_file.joinpath(file_name)
+        ppt_file = ppt_file.joinpath(file_name)
         response = requests.request('GET', url)
 
         with open(ppt_file, 'wb') as f:
