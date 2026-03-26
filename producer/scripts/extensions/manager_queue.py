@@ -4,7 +4,7 @@ from common import *
 
 class ManagerQueue():
     def get_queued_and_running(self):
-        db = GoogleFirestore().get_all_jobs()
+        db = GoogleFirestore('jobs').get_all_jobs()
 
         data_list = []
         status_accepted = ['queued', 'running']
@@ -19,4 +19,4 @@ class ManagerQueue():
 
 
     def cancel_job(self, job_id):
-        GoogleFirestore().set_job(job_id, data={'status': 'cancelled'})
+        GoogleFirestore('jobs').set_job(job_id, data={'status': 'cancelled'})

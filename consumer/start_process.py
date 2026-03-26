@@ -1,6 +1,6 @@
+from extensions.five_page       import FivePageFirst, FivePageSecond
 from extensions.relatorio_ppt   import RelatorioPPT
 from extensions.sentinel        import Sentinel
-from extensions.five_page       import FivePage
 from extensions.storage         import Storage
 from common                     import *
 
@@ -20,12 +20,13 @@ class StartProcess():
             'relatorioppt': {'class': RelatorioPPT, 'pretty_name': 'Relatório PPT'},
             'sentinel': {'class': Sentinel, 'pretty_name': 'Sentinela'},
             'storage':  {'class': Storage, 'pretty_name': 'Storage'},
-            'fivepage':  {'class': FivePage, 'pretty_name': '5page'}
+            'fivepagefirst':  {'class': FivePageFirst, 'pretty_name': '5page'},
+            'fivepagesecond':  {'class': FivePageSecond, 'pretty_name': '5page'}
         }
 
 
     def __need_run(self):
-        self.firestore_data = GoogleFirestore().get_job(self.job_id)
+        self.firestore_data = GoogleFirestore('jobs').get_job(self.job_id)
         if self.firestore_data['status'] == 'cancelled':
             return False
         
@@ -34,10 +35,10 @@ class StartProcess():
 
     def __need_qlik(self):
         need_qlik_list = [
+            'fivepagefirst',
             'relatorioppt',
             'sentinel',
-            'storage',
-            '5page'
+            'storage'
         ]
 
         if self.firestore_data['type_proccess'] in need_qlik_list:
@@ -102,7 +103,7 @@ class StartProcess():
         if not self.__need_run():
             return True
 
-        GoogleFirestore().set_job(self.job_id, {'status': 'running'})
+        GoogleFirestore('jobs').set_job(self.job_id, {'status': 'running'})
         
         self.__create_necessary_files()
         if self.__need_qlik():
@@ -113,7 +114,7 @@ class StartProcess():
             self.__set_state_agent('running')
 
             try:
-                operation_success =  self.apps[self.firestore_data['type_proccess']]['class'](
+                operation_success = self.apps[self.firestore_data['type_proccess']]['class'](
                     self.agent_number,
                     self.retry_count,
                     self.job_id,
@@ -144,11 +145,44 @@ class StartProcess():
                 if not self.__need_run():
                     return True
                 
-                GoogleFirestore().set_job(self.job_id, {'status': 'completed'})
+                GoogleFirestore('jobs').set_job(self.job_id, {'status': 'completed'})
                 return True
+        else:
+            try:
+                operation_success = self.apps[self.firestore_data['type_proccess']]['class'](
+                    self.agent_number,
+                    self.retry_count,
+                    self.job_id,
+                    self.firestore_data,
+                    self.apps[self.firestore_data['type_proccess']]['pretty_name']
+                ).run()
+            except Exception as error:
+                operation_success = False
+                timeline_error = traceback.format_exc()
+                message_data = {
+                    'discord_channel': 'sentinel' if self.firestore_data['type_proccess'] == 'sentinel' else 'bots',
+                    'message_id': self.job_id,
+                    'discord_username': self.firestore_data['discord_username'],
+                    'company': self.firestore_data['company_name'],
+                    'type_process': self.apps[self.firestore_data['type_proccess']]['pretty_name'],
+                    'stage': 'Ocorreu um erro desconhecido',
+                    'progress': 0,
+                    'status': 'error',
+                    'footer': self.firestore_data['created_at']
+                }
+                publish_message_discord(message_data)
+                logger.error(f'Erro no processo {self.apps[self.firestore_data['type_proccess']]['pretty_name']}: {timeline_error}')
+            
+            if operation_success:
+                if not self.__need_run():
+                    return True
+                
+                GoogleFirestore('jobs').set_job(self.job_id, {'status': 'completed'})
+                return True
+            
         
         if not self.__need_run():
             return True
         
-        GoogleFirestore().set_job(self.job_id, {'status': 'failed'})
+        GoogleFirestore('jobs').set_job(self.job_id, {'status': 'failed'})
         return False

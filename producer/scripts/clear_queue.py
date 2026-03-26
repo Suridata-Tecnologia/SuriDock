@@ -2,7 +2,7 @@ from extensions.google_cloud import GoogleFirestore
 
 
 
-database = GoogleFirestore().get_all_jobs()
+database = GoogleFirestore('jobs').get_all_jobs()
 status_to_delete = ['failed', 'cancelled', 'completed']
 jobs_to_delete = []
 
@@ -12,7 +12,7 @@ for data in database:
 
 
 if jobs_to_delete:
-    delete_count = GoogleFirestore().delete_jobs_batch(jobs_to_delete)
+    delete_count = GoogleFirestore('jobs').delete_jobs_batch(jobs_to_delete)
 else:
     delete_count = 0
 

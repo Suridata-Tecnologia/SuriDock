@@ -18,7 +18,7 @@ class FivePage():
             for company in companies:
                 message_data = {
                     'status': 'queued',
-                    'type_proccess': 'fivepage',
+                    'type_proccess': 'fivepagefirst',
                     'created_at': get_formated_time_now(),
                     'company_name': company,
                     'discord_user_id': self.user_id,

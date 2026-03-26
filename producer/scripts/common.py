@@ -116,7 +116,7 @@ class Producer():
 
 
     def __send_to_firestore(self):
-        GoogleFirestore().set_job(self.job_id, data=self.message_dict)
+        GoogleFirestore('jobs').set_job(self.job_id, data=self.message_dict)
 
 
     def __connection_rabbitmq(self):

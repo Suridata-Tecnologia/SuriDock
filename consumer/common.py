@@ -34,6 +34,8 @@ RABBITMQ_HOST       = os.getenv('RABBITMQ_HOST')
 RABBITMQ_USERNAME   = os.getenv('RABBITMQ_USERNAME')
 RABBITMQ_PASSWORD   = os.getenv('RABBITMQ_PASSWORD')
 RABBITMQ_MESSAGES   = os.getenv('RABBITMQ_MESSAGES')
+RABBITMQ_FIVEPAGE   = os.getenv('RABBITMQ_FIVEPAGE')
+
 
 fuso_brasilia = ZoneInfo("America/Sao_Paulo")
 logger.add('logs/script.log')
@@ -68,6 +70,17 @@ def publish_message_discord(message_data):
     channel.basic_publish(
         exchange='',
         routing_key=RABBITMQ_MESSAGES,
+        body=json.dumps(message_data).encode('utf-8')
+    )
+    connection.close()
+
+
+def publish_message_fivepage(message_data):    
+    channel, connection = connection_rabbitmq()
+    channel.queue_declare(queue=RABBITMQ_FIVEPAGE, durable=True)
+    channel.basic_publish(
+        exchange='',
+        routing_key=RABBITMQ_FIVEPAGE,
         body=json.dumps(message_data).encode('utf-8')
     )
     connection.close()
@@ -171,36 +184,24 @@ def has_gestao_pos(drive_folder):
 
 
 def get_path_script_qvs(qvd_path, agent_number, sentinel=False):
-    if MACHINE_NAME.lower() == 'homologação':
-        if sentinel:
-            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-SentinelTESTE{agent_number}.qvs')
-        else:
-            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-homo-bot{agent_number}.qvs')
-    elif MACHINE_NAME.lower() == 'produção 1':
-        if sentinel:
-            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-Sentinel1-agent{agent_number}.qvs')
-        else:
-            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-prod1-bot{agent_number}.qvs')
-    elif MACHINE_NAME.lower() == 'produção 2':
-        if sentinel:
-            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-Sentinel2-agent{agent_number}.qvs')
-        else:
-            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-prod2-bot{agent_number}.qvs')
-    elif MACHINE_NAME.lower() == 'produção 3':
-        if sentinel:
-            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-Sentinel3-agent{agent_number}.qvs')
-        else:
-            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-prod3-bot{agent_number}.qvs')
-    elif MACHINE_NAME.lower() == 'produção 4':
-        if sentinel:
-            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-Sentinel4-agent{agent_number}.qvs')
-        else:
-            script_path = qvd_path.parent.joinpath('_QSScripts', f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-prod4-bot{agent_number}.qvs')
-    else:
+    machine = MACHINE_NAME.lower()
+
+    mapping = {
+        'homologação': ('SentinelTESTE', 'homo-bot'),
+        'produção 1': ('Sentinel1-agent', 'prod1-bot'),
+        'produção 2': ('Sentinel2-agent', 'prod2-bot'),
+        'produção 3': ('Sentinel3-agent', 'prod3-bot'),
+        'produção 4': ('Sentinel4-agent', 'prod4-bot'),
+    }
+
+    if machine not in mapping:
         logger.error(f'Máquina não identificada: {MACHINE_NAME}')
         quit()
 
-    return script_path
+    prefix = mapping[machine][0 if sentinel else 1]
+
+    filename = f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-{prefix}{agent_number}.qvs'
+    return qvd_path.parent.joinpath('_QSScripts', filename)
 
 
 def edit_script_qvs(script_path, company_name, activity, language, month_analysis, sentinel=False):
