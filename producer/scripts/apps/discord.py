@@ -120,20 +120,20 @@ class DiscordBot:
         self._register_handlers()
         self._register_commands()
 
-        sentinel = self.trello = Trello(
-            list_source_name='Operação: Aguardando Processamento',
-            list_target_name='Operação: Processamento'
-        )
+        # sentinel = self.trello = Trello(
+        #     list_source_name='Operação: Aguardando Processamento',
+        #     list_target_name='Operação: Processamento'
+        # )
 
-        relatorioppt = self.trello = Trello(
-            list_source_name='Saúde: Processar PPT',
-            list_target_name='Saúde: Processando PPT'
-        )
+        # relatorioppt = self.trello = Trello(
+        #     list_source_name='Saúde: Processar PPT',
+        #     list_target_name='Saúde: Processando PPT'
+        # )
 
-        storage = self.trello = Trello(
-            list_source_name='Operação: Atualizar no Portal (Storage) 🎉',
-            list_target_name='Operação: Atualizando no Portal (Storage)'
-        )
+        # storage = self.trello = Trello(
+        #     list_source_name='Operação: Atualizar no Portal (Storage) 🎉',
+        #     list_target_name='Operação: Atualizando no Portal (Storage)'
+        # )
 
 
     # ----------------------------------------------------------
