@@ -4,7 +4,7 @@ from discord                        import app_commands
 from discord.ext                    import commands
 from datetime                       import datetime
 from zoneinfo                       import ZoneInfo
-from extensions.FivePage            import FivePage
+from extensions.five_page           import FivePage
 from extensions.storage             import Storage
 from extensions.trello              import Trello
 from loguru                         import logger

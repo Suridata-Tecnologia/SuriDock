@@ -1,19 +1,30 @@
-from extensions.google_cloud import GoogleFirestore
+from extensions.google_cloud    import GoogleFirestore
+from loguru                     import logger
 
 
 
-database = GoogleFirestore('jobs').get_all_jobs()
-status_to_delete = ['failed', 'cancelled', 'completed']
-jobs_to_delete = []
-
-for data in database:
-    if database[data]['status'] in status_to_delete:
-        jobs_to_delete.append(data)
+class ClearQueue():
+    def __init__(self):
+        self.database = GoogleFirestore('jobs').get_all_jobs()
+        self.status_to_delete = ['failed', 'cancelled', 'completed']
+        self.jobs_to_delete = []
 
 
-if jobs_to_delete:
-    delete_count = GoogleFirestore('jobs').delete_jobs_batch(jobs_to_delete)
-else:
-    delete_count = 0
+    def __filter_jobs(self):
+        for data in self.database:
+            if self.database[data]['status'] in self.status_to_delete:
+                self.jobs_to_delete.append(data)
 
-print(f'{delete_count} jobs excluídos')
+
+    def __delete_jobs(self):
+        if self.jobs_to_delete:
+            delete_count = GoogleFirestore('jobs').delete_jobs_batch(self.jobs_to_delete)
+        else:
+            delete_count = 0
+
+        logger.info(f'{delete_count} jobs excluídos')
+
+
+    def run(self):
+        self.__filter_jobs()
+        self.__delete_jobs()

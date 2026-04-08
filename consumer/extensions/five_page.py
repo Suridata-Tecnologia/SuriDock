@@ -48,6 +48,7 @@ class FivePageFirst():
     def run(self):
         if self.__run_storage():
             self.mj['type_proccess'] = 'fivepagesecond'
+            self.mj['status'] = 'queued'
             GoogleFirestore('FivePage').set_job(
                 job_id=self.disc_message_id,
                 data=self.__get_data()

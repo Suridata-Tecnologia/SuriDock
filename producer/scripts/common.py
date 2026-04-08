@@ -30,10 +30,15 @@ class DriveAPI():
 
     def get_folders_drive_by_id(self, onlyFolder=True):
         logger.info(f'Iniciando busca no google drive usando o ID {self.parent_id}')
-        creds = Credentials.from_service_account_file(
-            './credentials/suridata-drive-access.json',
-            scopes=['https://www.googleapis.com/auth/drive']
-        )
+        
+        try:
+            creds = Credentials.from_service_account_file(
+                './credentials/suridata-drive-access.json',
+                scopes=['https://www.googleapis.com/auth/drive']
+            )
+        except Exception as error:
+            logger.error(f'Erro ao se conectar na API do google: {error}')
+            return []
 
         drive = build("drive", "v3", credentials=creds)
 
@@ -110,8 +115,8 @@ class SplitCompanies():
 
 
 class Producer():
-    def __init__(self, message_data):
-        self.job_id = str(uuid.uuid4())
+    def __init__(self, message_data, job_id=None):
+        self.job_id = job_id if job_id else str(uuid.uuid4())
         self.message_dict = message_data
 
 
