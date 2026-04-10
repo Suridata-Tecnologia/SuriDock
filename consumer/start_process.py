@@ -27,7 +27,7 @@ class StartProcess():
 
     def __need_run(self):
         self.firestore_data = GoogleFirestore('jobs').get_job(self.job_id)
-        if self.firestore_data['status'] == 'cancelled':
+        if self.firestore_data and self.firestore_data['status'] == 'cancelled':
             return False
         
         return True

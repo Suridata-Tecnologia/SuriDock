@@ -186,11 +186,12 @@ class FivePageSecond():
 
             move_file(file_pdf, destination_pdf)
 
-            self.__discord_message('arquivo no drive :slight_smile:', 100)
+            self.__discord_message('arquivo no drive :slight_smile:', 100, 'success')
             self.__move_card_trello('Saúde: Produtos 6M')
             return True
         
         self.__move_card_trello('Saúde: Review')
+        self.__discord_message('erro ao mover o arquivo para o drive', 0, 'error')
         return False
 
 
