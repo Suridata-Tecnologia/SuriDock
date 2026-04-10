@@ -140,13 +140,6 @@ class StartProcess():
 
             self.__set_state_agent('stopped')
             self.__close_qlik()
-
-            if operation_success:
-                if not self.__need_run():
-                    return True
-                
-                GoogleFirestore('jobs').set_job(self.job_id, {'status': 'completed'})
-                return True
         else:
             try:
                 operation_success = self.apps[self.firestore_data['type_proccess']]['class'](
@@ -173,12 +166,12 @@ class StartProcess():
                 publish_message_discord(message_data)
                 logger.error(f'Erro no processo {self.apps[self.firestore_data['type_proccess']]['pretty_name']}: {timeline_error}')
             
-            if operation_success:
-                if not self.__need_run():
-                    return True
-                
-                GoogleFirestore('jobs').set_job(self.job_id, {'status': 'completed'})
+        if operation_success:
+            if not self.__need_run():
                 return True
+            
+            GoogleFirestore('jobs').set_job(self.job_id, {'status': 'completed'})
+            return True
             
         
         if not self.__need_run():

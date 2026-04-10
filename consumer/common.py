@@ -3,10 +3,12 @@ from pathlib                            import Path, WindowsPath
 from urllib.parse                       import urlparse, unquote
 from extensions.google_cloud            import GoogleFirestore
 from selenium.webdriver.support.ui      import WebDriverWait
+from selenium.webdriver                 import ActionChains
 from pywinauto.findwindows              import find_windows
 from pywinauto                          import Application
 from dotenv                             import load_dotenv
 from shutil                             import copy, move
+from base64                             import b64encode
 from selenium                           import webdriver
 from database                           import Database
 from datetime                           import datetime
@@ -37,13 +39,25 @@ RABBITMQ_MESSAGES   = os.getenv('RABBITMQ_MESSAGES')
 RABBITMQ_FIVEPAGE   = os.getenv('RABBITMQ_FIVEPAGE')
 
 
-fuso_brasilia = ZoneInfo("America/Sao_Paulo")
-logger.add('logs/script.log')
 
+fuso_brasilia = ZoneInfo("America/Sao_Paulo")
 link_to_suripoint = 'https://suripoint-backend-87769041781.us-east1.run.app/' # Produção
 # link_to_suripoint = 'https://suripoint-backend-hom-87769041781.us-east1.run.app/' # Homologação
 
 
+
+def save_logs():
+    logs_path = Path.cwd().joinpath('logs/script.log')
+    if logs_path.exists():
+        try:
+            logs_path.unlink()
+        except Exception as error:
+            logger.error(f'não foi possível excluir o arquivo de logs: {error}')
+
+    # salva os logs
+    logger.add(logs_path)
+
+    
 def connection_rabbitmq():
     credentials = pika.PlainCredentials(
         username=RABBITMQ_USERNAME,
@@ -201,7 +215,13 @@ def get_path_script_qvs(qvd_path, agent_number, sentinel=False):
     prefix = mapping[machine][0 if sentinel else 1]
 
     filename = f'[0]QS_Backend_Script_Standard_ScriptFile_Initial-{prefix}{agent_number}.qvs'
-    return qvd_path.parent.joinpath('_QSScripts', filename)
+
+    script_path = qvd_path.parent.joinpath('_QSScripts', filename)
+    if not script_path.exists():
+        logger.error('app google drive fechado, fechando consumers...')
+        os.system('pm2 delete all')
+
+    return script_path
 
 
 def edit_script_qvs(script_path, company_name, activity, language, month_analysis, sentinel=False):
@@ -396,6 +416,16 @@ def wait_until_download_finish(download_path, driver):
         driver.quit()
 
 
+def get_url_fivepage(drive_folder):
+    data = Database().find_pretty_name_and_operator_name(drive_folder)[0]
+
+    base_dashboard_param = b64encode(bytes(str(data['dashboard_param']), 'utf-8')).decode()
+    base_company_id      = b64encode(bytes(str(data['id']), 'utf-8')).decode()
+    base_onepage         = b64encode(bytes(str('One Page'), 'utf-8')).decode()
+
+    return f'https://portal.suridata.com.br/dashboard/{base_company_id}/bmFu/{base_onepage}/{base_dashboard_param}/1', data['dashboard_param']
+
+
 def get_pretty_name(company_name):
     data = Database().find_pretty_name_and_policy(company_name)
     try:
@@ -580,3 +610,8 @@ def move_to_drive(qvd_path, company_name, is_audith, download_path, narrative, c
             
     logger.error(f'não existe ppt na pasta de download, provavelmente o qlik esta com problemas para baixar e precisa ser reiniciado')
     return False
+
+
+def clear_folder(folder_path):
+    for file in folder_path.rglob('*.*'):
+        file.unlink()

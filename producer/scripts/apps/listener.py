@@ -20,6 +20,7 @@ class FivePage():
 
     def __set_data(self):
         for job in self.jobs_to_run:
+            logger.info(f'Colocando {job} em jobs')
             Producer(self.db[job]['message_json'], job_id=job).run()
             GoogleFirestore('FivePage').delete_job(job_id=job)
 

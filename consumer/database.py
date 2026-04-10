@@ -35,6 +35,18 @@ class Database():
 
         return data
     
+
+    def find_pretty_name_and_operator_name(self, drive_folder):
+        data = self.find_all(
+            table_name='companies',
+            left_on='operator_id',
+            condition=f'companies.drive_path = "{drive_folder}"',
+            columns=['companies.pretty_name', 'companies.dashboard_param', 'operators.nickname', 'companies.id'],
+            related_table='operators'
+        )
+
+        return data
+    
     
     def find_all(self, table_name, condition=None, columns=[], related_table=None, left_on='id', right_on='id'):
         if not isinstance(columns, list):

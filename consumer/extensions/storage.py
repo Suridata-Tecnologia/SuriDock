@@ -45,12 +45,6 @@ class Storage():
         publish_message_discord(message_data)
 
 
-    def __clear_download_path(self):
-        self.__discord_message('organizando as pastas', 0)
-        for file in self.download_path.rglob('*.*'):
-            file.unlink()
-
-
     def __organize_environment(self):
         self.__discord_message('editando script do qlik', 15)
         self.__move_card_trello('Operação: Atualizando no Portal (Storage)') # coluna de quando o processo inicia
@@ -72,10 +66,7 @@ class Storage():
     def __control_qlik(self):
         navigate_to_process(self.driver, self.wait, self.agent_number)
         self.__discord_message('aguardando qlik processar a operadora', 45)
-        if not process_company(self.driver):
-            return False
-        
-        return True
+        return process_company(self.driver)
     
 
     def __move_to_storage(self):
@@ -139,6 +130,7 @@ class Storage():
 
     def __manager_qlik_and_move_to_storage(self):
         if self.__control_qlik():
+            self.driver.quit()
             if self.__move_to_storage():
                 if self.__start_suripoint():
                     self.__discord_message('Suripoint processou corretamente', 100, 'success')
@@ -153,13 +145,15 @@ class Storage():
                 self.__move_card_trello('Operação: Ajustes e Correções Portal') # coluna de quando o processo falha
                 return False
         else:
+            self.driver.quit()
             self.__discord_message('erro no qlik', 0, 'error')
             self.__move_card_trello('Operação: Ajustes e Correções Portal') # coluna de quando o processo falha
             return False
 
 
     def run(self):
-        self.__clear_download_path()
+        self.__discord_message('organizando as pastas', 0)
+        clear_folder(self.download_path)
         self.__organize_environment()
         self.__init_browser()
         return self.__manager_qlik_and_move_to_storage()

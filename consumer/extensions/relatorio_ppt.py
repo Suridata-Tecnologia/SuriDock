@@ -44,12 +44,6 @@ class RelatorioPPT():
         publish_message_discord(message_data)
 
 
-    def __clear_download_path(self):
-        self.__discord_message('organizando as pastas', 0)
-        for file in self.download_path.rglob('*.*'):
-            file.unlink()
-
-
     def __organize_environment(self):
         self.__discord_message('editando script do qlik', 16)
         self.__move_card_trello('Saúde: Processando PPT') # coluna de quando o processo inicia
@@ -102,7 +96,8 @@ class RelatorioPPT():
 
 
     def run(self):
-        self.__clear_download_path()
+        self.__discord_message('organizando as pastas', 0)
+        clear_folder(self.download_path)
         self.__organize_environment()
         self.__init_browser()
         return self.__manager_qlik_and_move_to_drive()
