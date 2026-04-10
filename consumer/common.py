@@ -498,7 +498,7 @@ def backup_to_drive(file, qvd_path, company_name):
 def run_in_suripoint(file, is_audith):
     ppt_file = file.parent
     files=[('file',(file.stem, open(file,'rb'),'application/vnd.openxmlformats-officedocument.presentationml.presentation'))]
-    response = requests.request('POST', f'{link_to_suripoint}/ppt/process', data={'isAudity': is_audith, 'originalFilename': file.name}, files=files)
+    response = requests.request('POST', f'{link_to_suripoint}/ppt/process', data={'originalFilename': file.name}, files=files, params={'audity': str(is_audith).lower()})
 
     if response.status_code == 200:
         url = response.json()['downloadLink']
