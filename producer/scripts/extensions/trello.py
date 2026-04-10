@@ -227,8 +227,30 @@ class Trello():
                             'company_id': card_name.split(' - ')[0]
                         }
                         Producer(payload).run()
+                    elif 'saúde: upload 6m' in self.list_source_name.lower():
+                        logger.info(f'5page - Card encontrado para processamento: {card_name} ({card_id})')
+                        self.trello_move_card(card_id, target_id)
+                        payload = {
+                            'status': 'queued',
+                            'type_proccess': 'fivepagefirst',
+                            'created_at': get_formated_time_now(),
+                            'company_name': company_name,
+                            'discord_user_id': None,
+                            'discord_message_id': None,
+                            'trello_card_id': card_id,
+                            'activity': None,
+                            'month_analysis': None,
+                            'audith': None,
+                            'narrative': None,
+                            'user_email': None,
+                            'mail_list': None,
+                            'discord_username': f'Trello - Card {card_name.split(" - ")[0]}',
+                            'company_id': card_name.split(' - ')[0],
+                            'dark_mode': False
+                        }
+                        Producer(payload).run()
 
-                # Esperar 15 segundos antes de consultar de novo
+                # Espera 15 segundos antes de consultar novamente
                 sleep(15)
 
             except Exception as e:

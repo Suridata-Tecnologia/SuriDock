@@ -135,6 +135,11 @@ class DiscordBot:
             list_target_name='Operação: Atualizando no Portal (Storage)'
         )
 
+        fivepage = self.trello = Trello(
+            list_source_name='Saúde: Upload 6M',
+            list_target_name='Saúde: Processando 6M'
+        )
+
 
     # ----------------------------------------------------------
     # Handlers de eventos do Discord

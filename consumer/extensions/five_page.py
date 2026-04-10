@@ -3,6 +3,7 @@ from dotenv                  import load_dotenv
 from datetime                import timedelta 
 from extensions.storage      import Storage
 from extensions.adobe_api    import Convert
+from extensions.trello       import Trello
 from common                  import *
 
 import os
@@ -70,6 +71,11 @@ class FivePageSecond():
         self.disc_message_id    = disc_message_id
         self.mj                 = message_json
         self.pretty_name        = pretty_name
+
+
+    def __move_card_trello(self, list_target_name):
+        if self.mj['trello_card_id']:
+            Trello(card_id=self.mj['trello_card_id'], list_target_name=list_target_name).run()
 
 
     def __discord_message(self, message, progress, status='running', discord_channel='bots'):
@@ -180,8 +186,11 @@ class FivePageSecond():
 
             move_file(file_pdf, destination_pdf)
 
-            self.__discord_message('arquivo no drive', 100)
+            self.__discord_message('arquivo no drive :slight_smile:', 100)
+            self.__move_card_trello('Saúde: Produtos 6M')
             return True
+        
+        self.__move_card_trello('Saúde: Review')
         return False
 
 
