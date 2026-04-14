@@ -27,6 +27,9 @@ class StartProcess():
 
     def __need_run(self):
         self.firestore_data = GoogleFirestore('jobs').get_job(self.job_id)
+        if not self.firestore_data:
+            return False
+            
         if self.firestore_data['status'] == 'cancelled':
             return False
         
@@ -104,7 +107,6 @@ class StartProcess():
             return True
 
         GoogleFirestore('jobs').set_job(self.job_id, {'status': 'running'})
-        
         self.__create_necessary_files()
         if self.__need_qlik():
             qlik_app = is_qlik_running()
