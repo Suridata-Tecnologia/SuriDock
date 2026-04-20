@@ -124,7 +124,7 @@ class Storage():
     
 
     def __move_card_trello(self, list_target_name):
-        if self.mj['trello_card_id'] and self.mj['type_process'] == 'storage':
+        if self.mj['trello_card_id'] and self.mj['type_proccess'] == 'storage':
             Trello(card_id=self.mj['trello_card_id'], list_target_name=list_target_name).run()
 
 
