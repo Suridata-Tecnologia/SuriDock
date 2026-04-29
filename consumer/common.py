@@ -253,7 +253,7 @@ def init_browser(download_path='.'):
     return webdriver.Chrome(service=service, options=chrome_options)
 
 
-def navigate_to_process(driver, wait, agent_number, sentinel=False):
+def navigate_to_process(driver, wait, agent_number, sentinel=False, app_name=False):
     driver.get('http://localhost:4848/hub/my/work')
     driver.maximize_window()
     
@@ -263,16 +263,20 @@ def navigate_to_process(driver, wait, agent_number, sentinel=False):
     except:
         pass
 
-    # clicando no app correto de acordo com o agente e se é sentinel ou não
-    app_number = agent_number + 3 if sentinel else agent_number - 1
-    apps = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.hub-ul.qv-grid.ng-scope > li')))
-    apps[app_number].click()  # Seleciona o app desejado
-    driver.switch_to.window(driver.window_handles[1])
-    sleep(5)
+    if not app_name:
+        app_name = f'sentinel{agent_number}' if sentinel else f'agent{agent_number}'
 
+    apps = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.hub-ul.qv-grid.ng-scope > li')))
+
+    for app in apps:
+        if app_name in app.text.lower():
+            app.click() # clica no app correto
+            sleep(1)
+            break
+    
     # seleciona a nova guia (app) que foi aberta
     driver.switch_to.window(driver.window_handles[1])
-    sleep(10)
+    sleep(5)
 
     for _ in range(20):
         try:
