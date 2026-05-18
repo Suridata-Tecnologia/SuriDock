@@ -3,6 +3,7 @@ from clear_queue    import ClearQueue
 from apps.listener  import FivePage
 from loguru         import logger
 from time           import sleep
+from apps.pipe      import Pipe
 from pathlib        import Path
 
 import threading
@@ -38,9 +39,17 @@ def firestore_worker():
             logger.exception(f'Erro no firestore_worker: {e}')
         sleep(60)
 
+
+def pipe_worker():
+    while True:
+        Pipe().run()
+        sleep(86400)
+
 save_logs()
+
 
 threading.Thread(target=clear_queue_worker, daemon=True).start()
 threading.Thread(target=firestore_worker, daemon=True).start()
+threading.Thread(target=pipe_worker, daemon=True).start()
 
 DiscordBot().run()

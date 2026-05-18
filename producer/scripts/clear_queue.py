@@ -10,9 +10,12 @@ class ClearQueue():
         self.jobs_to_delete = []
 
 
-    def __filter_jobs(self):
+    def __filter_jobs(self, need_filter=True):
         for data in self.database:
-            if self.database[data]['status'] in self.status_to_delete:
+            if need_filter:
+                if self.database[data]['status'] in self.status_to_delete:
+                    self.jobs_to_delete.append(data)
+            else:
                 self.jobs_to_delete.append(data)
 
 

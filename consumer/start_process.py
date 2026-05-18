@@ -2,6 +2,7 @@ from extensions.five_page       import FivePageFirst, FivePageSecond
 from extensions.relatorio_ppt   import RelatorioPPT
 from extensions.sentinel        import Sentinel
 from extensions.storage         import Storage
+from extensions.pipe            import Pipe
 from common                     import *
 
 import traceback
@@ -21,7 +22,8 @@ class StartProcess():
             'sentinel': {'class': Sentinel, 'pretty_name': 'Sentinela'},
             'storage':  {'class': Storage, 'pretty_name': 'Storage'},
             'fivepagefirst':  {'class': FivePageFirst, 'pretty_name': '5page'},
-            'fivepagesecond':  {'class': FivePageSecond, 'pretty_name': '5page'}
+            'fivepagesecond':  {'class': FivePageSecond, 'pretty_name': '5page'},
+            'pipe':  {'class': Pipe, 'pretty_name': 'Pipe'}
         }
 
 
@@ -41,7 +43,8 @@ class StartProcess():
             'fivepagefirst',
             'relatorioppt',
             'sentinel',
-            'storage'
+            'storage',
+            'pipe'
         ]
 
         if self.firestore_data['type_proccess'] in need_qlik_list:
@@ -129,8 +132,8 @@ class StartProcess():
                 message_data = {
                     'discord_channel': 'sentinel' if self.firestore_data['type_proccess'] == 'sentinel' else 'bots',
                     'message_id': self.job_id,
-                    'discord_username': self.firestore_data['discord_username'],
-                    'company': self.firestore_data['company_name'],
+                    'discord_username': self.firestore_data['discord_username'] if 'discord_username' in list(self.firestore_data.keys()) else None,
+                    'company': self.firestore_data['company_name'] if 'company_name' in list(self.firestore_data.keys()) else None,
                     'type_process': self.apps[self.firestore_data['type_proccess']]['pretty_name'],
                     'stage': 'Ocorreu um erro desconhecido',
                     'progress': 0,

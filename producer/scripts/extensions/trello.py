@@ -12,15 +12,16 @@ import requests
 
 
 class Trello():
-    def __init__(self, list_source_name, list_target_name):
+    def __init__(self, list_source_name, list_target_name=None):
         self.suri_trello_api_key        = os.getenv('SURI_TRELLO_API_KEY')
         self.suri_trello_api_token      = os.getenv('SURI_TRELLO_API_TOKEN')
         self.suri_trello_board_id       = 'Vlpk9mpl'
         self.list_source_name           = list_source_name
         self.list_target_name           = list_target_name
 
-        self.thread_trello = threading.Thread(target=self._trello_watcher, daemon=True)
-        self.thread_trello.start()
+        if self.list_target_name:
+            self.thread_trello = threading.Thread(target=self._trello_watcher, daemon=True)
+            self.thread_trello.start()
 
 
     def trello_move_card(self, card_id: str, list_id: str):
@@ -37,7 +38,10 @@ class Trello():
             logger.info(f'Card {card_id} movido para lista {list_id}')
 
 
-    def get_list_id_by_name(self, list_name: str):
+    def get_list_id_by_name(self, list_name: str = ''):
+        if not list_name:
+            list_name = self.list_source_name
+            
         url = f'https://api.trello.com/1/boards/{self.suri_trello_board_id}/lists'
         params = {
             'key': self.suri_trello_api_key,
