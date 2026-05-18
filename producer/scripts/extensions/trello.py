@@ -210,7 +210,7 @@ class Trello():
                                 'company_id': card_name.split(' - ')[0]
                             }
                             Producer(payload).run()
-                    elif 'operação: atualizar no portal (storage) 🎉' in self.list_source_name.lower() and self.can_read_trello('storage'):
+                    elif 'operação: atualizar no portal (storage) 🎉' in self.list_source_name.lower() and self.can_read_trello('storage', test=True):
                         logger.info(f'Storage - Card encontrado para processamento: {card_name} ({card_id})')
                         self.trello_move_card(card_id, target_id)
                         payload = {
