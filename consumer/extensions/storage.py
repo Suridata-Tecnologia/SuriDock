@@ -134,7 +134,7 @@ class Storage():
             if self.__move_to_storage():
                 if self.__start_suripoint():
                     self.__discord_message('Suripoint processou corretamente', 100, 'success')
-                    self.__move_card_trello('Saúde: Validação dados Portal 👀👀👀') # coluna de quando o processo da certo
+                    self.__move_card_trello('Qualidade: Validação dados Portal 👀👀👀') # coluna de quando o processo da certo
                     return True
                 else:
                     self.__discord_message('Arquivos subiu para o storage mas o suripoint falhou', 0, 'error')
