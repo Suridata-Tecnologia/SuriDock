@@ -126,8 +126,8 @@ class DiscordBot:
         )
 
         relatorioppt = self.trello = Trello(
-            list_source_name='Saúde: Processar PPT',
-            list_target_name='Saúde: Processando PPT'
+            list_source_name='Qualidade: Processar PPT',
+            list_target_name='Qualidade: Processando PPT'
         )
 
         storage = self.trello = Trello(
@@ -136,8 +136,8 @@ class DiscordBot:
         )
 
         fivepage = self.trello = Trello(
-            list_source_name='Saúde: Upload 6M',
-            list_target_name='Saúde: Processando 6M'
+            list_source_name='Qualidade: Upload 6M',
+            list_target_name='Qualidade: Processando 6M'
         )
 
 

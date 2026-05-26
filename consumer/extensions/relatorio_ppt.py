@@ -84,7 +84,7 @@ class RelatorioPPT():
             self.__discord_message('esperando suripoint processar o arquivo', 80)
             if move_to_drive(self.qvd_path, self.mj['company_name'], is_audith, self.download_path, self.mj['narrative'], company_pretty_name):
                 self.__discord_message('relatório salvo no drive', 100, 'success')
-                self.__move_card_trello('Saúde: Gerar ppt + 1ª validação') # coluna de quando o processo é finalizado com sucesso
+                self.__move_card_trello('Qualidade: Gerar ppt + 1ª validação') # coluna de quando o processo é finalizado com sucesso
                 return True
             else:
                 self.__discord_message('erro no suripoint', 0, 'error')
