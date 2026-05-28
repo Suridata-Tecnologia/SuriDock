@@ -146,7 +146,7 @@ class Trello():
                             'company_id': card_name.split(' - ')[0]
                         }
                         Producer(payload).run()
-                    elif 'saúde: processar ppt' in self.list_source_name.lower():
+                    elif 'qualidade: processar ppt' in self.list_source_name.lower():
                         logger.info(f'RelatórioPPT - Card encontrado para processamento: {card_name} ({card_id})')
                         self.trello_move_card(card_id, target_id)
                         has_english = Database().get_language_by_company(company_name)
@@ -231,7 +231,7 @@ class Trello():
                             'company_id': card_name.split(' - ')[0]
                         }
                         Producer(payload).run()
-                    elif 'saúde: upload 6m' in self.list_source_name.lower():
+                    elif 'qualidade: upload 6m' in self.list_source_name.lower():
                         logger.info(f'5page - Card encontrado para processamento: {card_name} ({card_id})')
                         self.trello_move_card(card_id, target_id)
                         payload = {

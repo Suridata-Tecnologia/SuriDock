@@ -46,7 +46,7 @@ class RelatorioPPT():
 
     def __organize_environment(self):
         self.__discord_message('editando script do qlik', 16)
-        self.__move_card_trello('Saúde: Processando PPT') # coluna de quando o processo inicia
+        self.__move_card_trello('Qualidade: Processando PPT') # coluna de quando o processo inicia
         self.gestao_pos = has_gestao_pos(self.mj['company_name'])
         edit_script_qvs(
             script_path=self.script_path,

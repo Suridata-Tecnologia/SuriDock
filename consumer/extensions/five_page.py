@@ -187,7 +187,7 @@ class FivePageSecond():
             move_file(file_pdf, destination_pdf)
 
             self.__discord_message('arquivo no drive :slight_smile:', 100, 'success')
-            self.__move_card_trello('Saúde: Produtos 6M')
+            self.__move_card_trello('Qualidade: Produtos 6M')
             return True
         
         self.__move_card_trello('Saúde: Review')
