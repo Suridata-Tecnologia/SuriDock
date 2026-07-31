@@ -17,7 +17,8 @@ class Sentinel():
         self.agent_number       = agent_number
         self.retry_count        = retry_count
         self.pretty_name        = pretty_name
-        self.mj['company_name'] = SuridataApi().get_company_by_id(self.mj['company_id'])['drive_folder']
+        if self.mj['company_id']:
+            self.mj['company_name'] = SuridataApi().get_company_by_id(self.mj['company_id'])['drive_folder']
 
 
     def __discord_message(self, message, progress, status='running', discord_channel='sentinel'):
@@ -37,7 +38,8 @@ class Sentinel():
 
     def __organize_environment(self):
         self.__discord_message('Editando script do qlik', 0)
-        Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Processamento').run()
+        if self.mj['trello_card_id']:
+            Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Processamento').run()
         edit_script_qvs(
             script_path=self.script_path,
             company_name=self.mj['company_name'],
@@ -59,12 +61,14 @@ class Sentinel():
         navigate_to_process(self.driver, self.wait, self.agent_number, sentinel=True)
         self.__discord_message('Aguardando qlik processar a operadora', 60)
         if not process_company(self.driver):
-            Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Erros').run()
+            if self.mj['trello_card_id']:
+                Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Erros').run()
             self.__discord_message('Erro no qlik', 0, status='error')
             return False
         
         self.driver.quit()
-        Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Validação').run()
+        if self.mj['trello_card_id']:
+            Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Validação').run()
         return True
     
 

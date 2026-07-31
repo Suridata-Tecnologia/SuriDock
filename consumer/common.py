@@ -37,6 +37,7 @@ RABBITMQ_USERNAME   = os.getenv('RABBITMQ_USERNAME')
 RABBITMQ_PASSWORD   = os.getenv('RABBITMQ_PASSWORD')
 RABBITMQ_MESSAGES   = os.getenv('RABBITMQ_MESSAGES')
 RABBITMQ_FIVEPAGE   = os.getenv('RABBITMQ_FIVEPAGE')
+LOCAL_MODE          = False
 
 
 
@@ -78,7 +79,19 @@ def connection_rabbitmq():
     return channel, connection
 
 
-def publish_message_discord(message_data):    
+def set_local_mode(enabled=True):
+    global LOCAL_MODE
+    LOCAL_MODE = enabled
+
+
+def is_local_mode():
+    return LOCAL_MODE
+
+
+def publish_message_discord(message_data):
+    if LOCAL_MODE:
+        return
+
     channel, connection = connection_rabbitmq()
     channel.queue_declare(queue=RABBITMQ_MESSAGES, durable=True)
     channel.basic_publish(
@@ -90,6 +103,9 @@ def publish_message_discord(message_data):
 
 
 def publish_message_fivepage(message_data):    
+    if LOCAL_MODE:
+        return
+
     channel, connection = connection_rabbitmq()
     channel.queue_declare(queue=RABBITMQ_FIVEPAGE, durable=True)
     channel.basic_publish(

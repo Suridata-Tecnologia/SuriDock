@@ -53,6 +53,15 @@ class FivePageFirst():
         if self.__run_storage():
             self.mj['type_proccess'] = 'fivepagesecond'
             self.mj['status'] = 'queued'
+            if is_local_mode():
+                return FivePageSecond(
+                    self.agent_number,
+                    self.retry_count,
+                    self.disc_message_id,
+                    self.mj,
+                    self.pretty_name
+                ).run()
+
             GoogleFirestore('FivePage').set_job(
                 job_id=self.disc_message_id,
                 data=self.__get_data()

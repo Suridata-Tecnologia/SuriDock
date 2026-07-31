@@ -10,10 +10,12 @@ import traceback
 
 
 class StartProcess():
-    def __init__(self, agent_number, retry_count, job_id):
+    def __init__(self, agent_number, retry_count, job_id=None, job_data=None):
         self.agent_number       = agent_number
         self.retry_count        = retry_count
         self.job_id             = job_id
+        self.firestore_data     = job_data
+        self.local_mode         = job_data is not None
         
         self.qlik_use = Path('config/qlik_use.txt')
 
@@ -28,7 +30,8 @@ class StartProcess():
 
 
     def __need_run(self):
-        self.firestore_data = GoogleFirestore('jobs').get_job(self.job_id)
+        if not self.local_mode:
+            self.firestore_data = GoogleFirestore('jobs').get_job(self.job_id)
         if not self.firestore_data:
             return False
             
@@ -109,7 +112,8 @@ class StartProcess():
         if not self.__need_run():
             return True
 
-        GoogleFirestore('jobs').set_job(self.job_id, {'status': 'running'})
+        if not self.local_mode:
+            GoogleFirestore('jobs').set_job(self.job_id, {'status': 'running'})
         self.__create_necessary_files()
         if self.__need_qlik():
             qlik_app = is_qlik_running()
@@ -175,7 +179,7 @@ class StartProcess():
             if not self.__need_run():
                 return True
             
-            if self.firestore_data['type_proccess'] != 'fivepagefirst':
+            if not self.local_mode and self.firestore_data['type_proccess'] != 'fivepagefirst':
                 GoogleFirestore('jobs').set_job(self.job_id, {'status': 'completed'})
 
             return True
@@ -184,5 +188,6 @@ class StartProcess():
         if not self.__need_run():
             return True
         
-        GoogleFirestore('jobs').set_job(self.job_id, {'status': 'failed'})
+        if not self.local_mode:
+            GoogleFirestore('jobs').set_job(self.job_id, {'status': 'failed'})
         return False
