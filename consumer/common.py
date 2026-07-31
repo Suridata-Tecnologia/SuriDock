@@ -217,6 +217,8 @@ def get_path_script_qvs(qvd_path, agent_number, sentinel=False):
     machine = MACHINE_NAME.lower()
 
     mapping = {
+        'lucas': ('Sentinel-lucas', 'lucas-bot'),
+        'nathalia': ('Sentinel-nathalia', 'nathalia-bot'),
         'homologação': ('SentinelTESTE', 'homo-bot'),
         'produção 1': ('Sentinel1-agent', 'prod1-bot'),
         'produção 2': ('Sentinel2-agent', 'prod2-bot'),
