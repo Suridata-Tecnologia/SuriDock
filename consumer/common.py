@@ -1,24 +1,25 @@
-from selenium.webdriver.support         import expected_conditions as EC
-from pathlib                            import Path, WindowsPath
-from urllib.parse                       import urlparse, unquote
-from extensions.google_cloud            import GoogleFirestore
-from selenium.webdriver.support.ui      import WebDriverWait
-from selenium.webdriver                 import ActionChains
-from pywinauto.findwindows              import find_windows
-from pywinauto                          import Application
-from dotenv                             import load_dotenv
-from shutil                             import copy, move
-from base64                             import b64encode
-from selenium                           import webdriver
-from database                           import Database
-from datetime                           import datetime
-from zoneinfo                           import ZoneInfo
-from selenium.webdriver.chrome.options  import Options
-from selenium.webdriver.chrome.service  import Service
-from zipfile                            import ZipFile
-from loguru                             import logger
-from time                               import sleep
-from selenium.webdriver.common.by       import By
+from selenium.webdriver.support                 import expected_conditions as EC
+from pathlib                                    import Path, WindowsPath
+from urllib.parse                               import urlparse, unquote
+from extensions.google_cloud                    import GoogleFirestore
+from selenium.webdriver.support.ui              import WebDriverWait
+from selenium.webdriver                         import ActionChains
+from pywinauto.findwindows                      import find_windows
+from pywinauto                                  import Application
+from dotenv                                     import load_dotenv
+from shutil                                     import copy, move
+from base64                                     import b64encode
+from selenium                                   import webdriver
+from database                                   import Database
+from datetime                                   import datetime
+from zoneinfo                                   import ZoneInfo
+from selenium.webdriver.chrome.options          import Options
+from selenium.webdriver.chrome.service          import Service
+from zipfile                                    import ZipFile
+from loguru                                     import logger
+from time                                       import sleep
+from selenium.webdriver.common.by               import By
+from anticaptchaofficial.recaptchav2proxyless   import *
 
 import subprocess
 import requests
@@ -31,6 +32,7 @@ import re
 
 
 load_dotenv()
+CAPTCHA_KEY         = os.getenv('CAPTCHA_KEY')
 MACHINE_NAME        = os.getenv('MACHINE_NAME')
 RABBITMQ_HOST       = os.getenv('RABBITMQ_HOST')
 RABBITMQ_USERNAME   = os.getenv('RABBITMQ_USERNAME')
@@ -220,10 +222,10 @@ def get_path_script_qvs(qvd_path, agent_number, sentinel=False):
         'lucas': ('Sentinel-lucas', 'lucas-bot'),
         'nathalia': ('Sentinel-nathalia', 'nathalia-bot'),
         'homologação': ('SentinelTESTE', 'homo-bot'),
-        'produção 1': ('Sentinel1-agent', 'prod1-bot'),
-        'produção 2': ('Sentinel2-agent', 'prod2-bot'),
-        'produção 3': ('Sentinel3-agent', 'prod3-bot'),
-        'produção 4': ('Sentinel4-agent', 'prod4-bot'),
+        'produção 1': ('Sentinel1-agent', 'prod1-agent'),
+        'produção 2': ('Sentinel2-agent', 'prod2-agent'),
+        'produção 3': ('Sentinel3-agent', 'prod3-agent'),
+        'produção 4': ('Sentinel4-agent', 'prod4-agent'),
     }
 
     if machine not in mapping:
@@ -637,3 +639,13 @@ def move_to_drive(qvd_path, company_name, is_audith, download_path, narrative, c
 def clear_folder(folder_path):
     for file in folder_path.rglob('*.*'):
         file.unlink()
+
+
+def bypass_captcha(url, url_key):
+    solver = recaptchaV2Proxyless()
+    solver.set_verbose(1)
+    solver.set_key(CAPTCHA_KEY)
+    solver.set_website_url(url)
+    solver.set_website_key(url_key)
+
+    return solver.solve_and_return_solution()

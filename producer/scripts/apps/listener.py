@@ -1,7 +1,7 @@
 from extensions.google_cloud    import GoogleFirestore
 from datetime                   import datetime
-from loguru                     import logger
 from common                     import Producer
+from loguru                     import logger
 
 
 

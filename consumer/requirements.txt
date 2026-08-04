@@ -1,6 +1,7 @@
 chromedriver-autoinstaller
 google-cloud-firestore
 google-cloud-storage
+anticaptchaofficial
 mysql-connector
 python-dotenv
 pywinauto

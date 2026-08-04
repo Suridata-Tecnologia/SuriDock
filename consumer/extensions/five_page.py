@@ -115,7 +115,15 @@ class FivePageSecond():
 
         self.driver.find_element(by='name', value='usuario').send_keys(SURIPORTAL_USERNAME)
         self.driver.find_element(by='name', value='senha').send_keys(SURIPORTAL_PASSWORD)
-        self.driver.find_element(by='xpath', value='/html/body/main/div[1]/div/form/div[3]/input').click()
+
+        logger.info('Aguardando resolução do captcha...')
+        solution = bypass_captcha(
+            'https://portal.suridata.com.br/',
+            '6LcUkWUtAAAAAMG7zE4s8sCUhhInHvKkSUhFAi15'
+        )
+
+        self.driver.execute_script(f"document.getElementById('g-recaptcha-response').innerHTML = '{solution}'")
+        self.driver.find_element(By.ID, 'button_login').click()
 
 
     def __navigate_into_pages(self):
