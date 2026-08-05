@@ -111,7 +111,7 @@ class FivePageSecond():
 
     def __login(self):
         self.__discord_message('realizando login no portal da suridata', 16)
-        self.driver.get('https://hml.portal.suridata.com.br/')
+        self.driver.get('https://portal.suridata.com.br/')
 
         self.driver.find_element(by='name', value='usuario').send_keys(SURIPORTAL_USERNAME)
         self.driver.find_element(by='name', value='senha').send_keys(SURIPORTAL_PASSWORD)
