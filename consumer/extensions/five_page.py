@@ -111,18 +111,18 @@ class FivePageSecond():
 
     def __login(self):
         self.__discord_message('realizando login no portal da suridata', 16)
-        self.driver.get('https://portal.suridata.com.br/')
+        self.driver.get('https://hml.portal.suridata.com.br/')
 
         self.driver.find_element(by='name', value='usuario').send_keys(SURIPORTAL_USERNAME)
         self.driver.find_element(by='name', value='senha').send_keys(SURIPORTAL_PASSWORD)
 
-        logger.info('Aguardando resolução do captcha...')
-        solution = bypass_captcha(
-            'https://portal.suridata.com.br/',
-            '6LcUkWUtAAAAAMG7zE4s8sCUhhInHvKkSUhFAi15'
-        )
+        # logger.info('Aguardando resolução do captcha...')
+        # solution = bypass_captcha(
+        #     'https://portal.suridata.com.br/',
+        #     '6LcUkWUtAAAAAMG7zE4s8sCUhhInHvKkSUhFAi15'
+        # )
 
-        self.driver.execute_script(f"document.getElementById('g-recaptcha-response').innerHTML = '{solution}'")
+        # self.driver.execute_script(f"document.getElementById('g-recaptcha-response').innerHTML = '{solution}'")
         self.driver.find_element(By.ID, 'button_login').click()
 
 
