@@ -221,6 +221,7 @@ def get_path_script_qvs(qvd_path, agent_number, sentinel=False):
     mapping = {
         'lucas': ('Sentinel-lucas', 'lucas-bot'),
         'nathalia': ('Sentinel-nathalia', 'nathalia-bot'),
+        'luiza': ('Sentinel-luiza', 'luiza-bot'),
         'homologação': ('SentinelTESTE', 'homo-bot'),
         'produção 1': ('Sentinel1-agent', 'prod1-agent'),
         'produção 2': ('Sentinel2-agent', 'prod2-agent'),
