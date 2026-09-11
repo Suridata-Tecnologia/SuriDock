@@ -77,6 +77,7 @@ class Sentinel():
 
         main_directory = self.qvd_path.joinpath('_Analises', 'Validação Automática')
         backup_directory = main_directory.joinpath('Backup')
+        backup_directory.mkdir(parents=True, exist_ok=True)
 
         current_date = datetime.now().strftime('%Y-%m-%d')
         cloud_storage = GoogleStorage('suri-storage')
