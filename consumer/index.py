@@ -23,7 +23,7 @@ if not agent_local:
 print(pyfiglet.figlet_format('SuriDock', font='slant'))
 close_process('chrome')
 close_process('qlik')
-save_logs()
+save_logs(agent_number)
 
 while not agent_local:
     try:

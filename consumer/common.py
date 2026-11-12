@@ -19,9 +19,11 @@ from zipfile                                    import ZipFile
 from loguru                                     import logger
 from time                                       import sleep
 from selenium.webdriver.common.by               import By
+from selenium.common.exceptions                 import TimeoutException
 from anticaptchaofficial.recaptchav2proxyless   import *
 
 import subprocess
+import threading
 import requests
 import psutil
 import pika
@@ -49,8 +51,11 @@ link_to_suripoint = 'https://suripoint-backend-87769041781.us-east1.run.app/' # 
 
 
 
-def save_logs():
-    logs_path = Path.cwd().joinpath('logs/script.log')
+def save_logs(agent_number=None):
+    # um arquivo por agente: se todos usassem o mesmo, um agente não conseguiria
+    # apagá-lo enquanto o outro está com ele aberto (WinError 32)
+    log_name = f'script-agent{agent_number}.log' if agent_number else 'script-local.log'
+    logs_path = Path.cwd().joinpath('logs', log_name)
     if logs_path.exists():
         try:
             logs_path.unlink()
@@ -127,11 +132,21 @@ def find_qlik_path():
         return False
     
 
+def wait_qlik_hub(timeout=180):
+    # o engine do qlik só sobe a porta 4848 depois do "iniciar"
+    for _ in range(timeout // 5):
+        try:
+            if requests.get('http://localhost:4848/hub/my/work', timeout=5).status_code == 200:
+                return True
+        except requests.RequestException:
+            pass
+        sleep(5)
+    return False
+
+
 def open_and_start_qlik(agent_number):
     qlik_path = find_qlik_path()
     if qlik_path:
-        subprocess.Popen(qlik_path)
-        sleep(5)
         app = Application(backend='uia').start(str(qlik_path))
 
         qlik_window = None
@@ -151,11 +166,20 @@ def open_and_start_qlik(agent_number):
 
         if qlik_window:
             qlik_app = app.window(handle=qlik_window)
-            qlik_app.set_focus()
             try:
-                qlik_app.child_window(title='Iniciar', control_type='Button').click_input()
-            except:
-                logger.warning(f'agent{agent_number} não conseguiu clicar em "iniciar" no qlik')
+                # o conteúdo da janela (e o botão) carrega alguns segundos depois da janela aparecer
+                start_button = qlik_app.child_window(title='Iniciar', control_type='Button')
+                start_button.wait('exists enabled', timeout=90, retry_interval=2)
+                # clica via automação (funciona mesmo com a sessão minimizada/RDP desconectado).
+                # o invoke() pode ficar bloqueado até o qlik terminar de iniciar, por isso roda numa thread
+                threading.Thread(target=start_button.invoke, daemon=True).start()
+            except Exception as error:
+                logger.warning(f'agent{agent_number} não conseguiu clicar em "iniciar" no qlik: {error}')
+
+            if wait_qlik_hub():
+                logger.info(f'agent{agent_number} iniciou o qlik (hub respondendo na porta 4848)')
+            else:
+                logger.error(f'agent{agent_number}: hub do qlik não respondeu na porta 4848 após clicar em "iniciar"')
             qlik_app.minimize()
             sleep(3)
             return qlik_app
@@ -249,14 +273,31 @@ def edit_script_qvs(script_path, company_name, activity, language, month_analysi
     with open(script_path, 'r', encoding='utf-8') as f:
         script_lines = f.readlines()
 
-    script_lines[10] = f"let vG_ClientName  = '{company_name.upper()}'; //<--- NOME DO CLIENTE EM LETA minúscula - conforme pasta do Drive\n"
+    min_lines = 11 if sentinel else 30
+    if len(script_lines) < min_lines:
+        raise ValueError(
+            f'Script {script_path} tem {len(script_lines)} linhas (mínimo {min_lines}). '
+            'O arquivo pode estar vazio/corrompido - restaure-o antes de rodar.'
+        )
+
+    script_lines[10] =f"let vG_ClientName  = '{company_name.upper()}'; //<--- NOME DO CLIENTE EM LETA minúscula - conforme pasta do Drive\n"
     if not sentinel:
         script_lines[13] = f"let vG_Atividadeda = '{activity}';  // o que você quer fazer?\n"
         script_lines[26] = f"let vG_Idioma = '{language}'; // <--- Idioma em que se deseja apresentar os slides depois do reload (sem acento). Valores possíveis:\n"
         script_lines[29] = f"LET vG_MesAnalise = '{month_analysis}';          // não -> padrão \n"
         
-    with open(script_path, 'w', encoding='utf-8') as f:
-        f.writelines(script_lines)
+    # grava num arquivo temporário e só depois substitui o original, para que
+    # uma interrupção no meio da escrita não deixe o .qvs vazio
+    tmp_path = Path(script_path).with_name(Path(script_path).name + '.tmp')
+    try:
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            f.writelines(script_lines)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, script_path)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
 
     logger.info(f'Editou o arquivo {script_path} do qlik pra rodar a empresa {company_name}')
 
@@ -287,7 +328,21 @@ def navigate_to_process(driver, wait, agent_number, sentinel=False, app_name=Fal
     if not app_name:
         app_name = f'sentinel{agent_number}' if sentinel else f'agent{agent_number}'
 
-    apps = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.hub-ul.qv-grid.ng-scope > li')))
+    # o hub pode demorar (ou o Qlik Desktop pode estar iniciando): tenta algumas vezes recarregando
+    apps = None
+    for attempt in range(3):
+        try:
+            apps = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.hub-ul.qv-grid.ng-scope > li')))
+            break
+        except TimeoutException:
+            logger.warning(f'Lista de apps do Qlik não carregou (tentativa {attempt + 1}/3), recarregando o hub...')
+            driver.get('http://localhost:4848/hub/my/work')
+
+    if not apps:
+        raise TimeoutException(
+            'Hub do Qlik (localhost:4848) não listou os apps. '
+            'Verifique se o Qlik Sense Desktop está aberto e logado, e se o hub está em modo grade.'
+        )
 
     for app in apps:
         if app_name in app.text.lower():
