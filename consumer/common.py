@@ -31,6 +31,7 @@ import pika
 import json
 import os
 import re
+import sys
 
 
 
@@ -62,6 +63,12 @@ def save_logs(agent_number=None):
             logs_path.unlink()
         except Exception as error:
             logger.error(f'não foi possível excluir o arquivo de logs: {error}')
+
+    # console: o loguru escreve tudo no stderr por padrão, e o pm2 marca stderr como erro
+    # (prefixo vermelho e arquivo *-error.log). Info/warning vão para o stdout, só erros para o stderr.
+    logger.remove()
+    logger.add(sys.stdout, level='DEBUG', filter=lambda record: record['level'].no < 40)
+    logger.add(sys.stderr, level='ERROR')
 
     # salva os logs
     logger.add(logs_path)
