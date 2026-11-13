@@ -19,7 +19,8 @@ from zipfile                                    import ZipFile
 from loguru                                     import logger
 from time                                       import sleep
 from selenium.webdriver.common.by               import By
-from selenium.common.exceptions                 import TimeoutException
+from selenium.common.exceptions                 import TimeoutException, ElementClickInterceptedException
+from selenium.webdriver.common.keys             import Keys
 from anticaptchaofficial.recaptchav2proxyless   import *
 
 import subprocess
@@ -196,6 +197,73 @@ def close_process(process_name):
         logger.error(f'psutil não conseguiu fechar o {process_name}: {error}')
 
 
+QLIK_USE_PATH       = Path('config/qlik_use.txt')
+RESTART_FLAG_PATH   = Path('config/restart_pending')
+RESTART_FLAG_MAX_AGE = 2 * 3600 + 600  # flag mais velha que isso é considerada esquecida
+AGENT_SLOTS         = 4
+
+
+def read_agent_states():
+    # config/qlik_use.txt: "agent1-stopped ## agent2-running ## ..." - estado de cada agente
+    if not QLIK_USE_PATH.exists():
+        QLIK_USE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        QLIK_USE_PATH.write_text(
+            ' ## '.join(f'agent{n}-stopped' for n in range(1, AGENT_SLOTS + 1)),
+            encoding='utf-8'
+        )
+
+    agents = [a.strip() for a in QLIK_USE_PATH.read_text(encoding='utf-8').split(' ## ') if a.strip()]
+    present = {a.split('-')[0] for a in agents}
+    for n in range(1, AGENT_SLOTS + 1):
+        if f'agent{n}' not in present:
+            agents.append(f'agent{n}-stopped')
+
+    return sorted(agents, key=lambda a: int(a.split('-')[0].replace('agent', '')))
+
+
+def set_agent_state(agent_number, state):
+    agents = read_agent_states()
+    agents[agent_number - 1] = f'agent{agent_number}-{state}'
+    QLIK_USE_PATH.write_text(' ## '.join(agents), encoding='utf-8')
+
+
+def running_agents(exclude=None):
+    # lista os agentes marcados como "running", ignorando o próprio agente (exclude)
+    return [
+        a.split('-')[0] for a in read_agent_states()
+        if a.endswith('-running') and a.split('-')[0] != f'agent{exclude}'
+    ]
+
+
+def restart_pending():
+    # o restart.py cria essa flag para os agentes pararem de pegar jobs novos antes do "pm2 restart all"
+    if not RESTART_FLAG_PATH.exists():
+        return False
+
+    try:
+        age = datetime.now().timestamp() - RESTART_FLAG_PATH.stat().st_mtime
+    except FileNotFoundError:
+        return False
+
+    return age < RESTART_FLAG_MAX_AGE
+
+
+def ensure_qlik_ready(agent_number):
+    # garante que o qlik está aberto E que o hub responde na porta 4848.
+    # só a janela existir não basta: ela pode estar fechando (outro agente acabou de matar o qlik)
+    if is_qlik_running():
+        if wait_qlik_hub(timeout=60):
+            return True
+        logger.warning(f'agent{agent_number}: janela do qlik aberta mas o hub (porta 4848) não responde, reiniciando o qlik...')
+        close_process('qlik')
+        sleep(5)
+
+    if not open_and_start_qlik(agent_number):
+        return False
+
+    return wait_qlik_hub(timeout=10)
+
+
 def is_qlik_running():
     qlik_path = find_qlik_path()
     if qlik_path:
@@ -315,15 +383,37 @@ def init_browser(download_path='.'):
     return webdriver.Chrome(service=service, options=chrome_options)
 
 
+def close_qlik_modal(driver, timeout=5):
+    # o hub do qlik às vezes abre um pop-up (spam) que cobre a lista de apps;
+    # ele reaparece a cada recarregamento do hub, então precisa ser fechado antes de cada clique
+    try:
+        WebDriverWait(driver, timeout).until(
+            EC.element_to_be_clickable((By.XPATH, '/html/body/div[2]/div/div/div/div[2]/div[1]/button/span'))
+        ).click()
+    except Exception:
+        pass
+
+    modal = (By.CSS_SELECTOR, '.lui-modal-background')
+    try:
+        WebDriverWait(driver, 10).until(EC.invisibility_of_element_located(modal))
+        return
+    except TimeoutException:
+        pass
+
+    # botão de fechar não encontrado: tenta fechar com ESC
+    logger.warning('Pop-up do Qlik continua aberto, tentando fechar com ESC...')
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+    try:
+        WebDriverWait(driver, 5).until(EC.invisibility_of_element_located(modal))
+    except TimeoutException:
+        logger.warning('Não foi possível fechar o pop-up do Qlik')
+
+
 def navigate_to_process(driver, wait, agent_number, sentinel=False, app_name=False):
     driver.get('http://localhost:4848/hub/my/work')
     driver.maximize_window()
-    
-    try: # colocado um try por conta do spam não aparecer a vezes
-        wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div/div/div/div[2]/div[1]/button/span')))
-        driver.find_element(By.XPATH, '/html/body/div[2]/div/div/div/div[2]/div[1]/button/span').click()
-    except:
-        pass
+
+    close_qlik_modal(driver, timeout=wait._timeout)
 
     if not app_name:
         app_name = f'sentinel{agent_number}' if sentinel else f'agent{agent_number}'
@@ -344,9 +434,16 @@ def navigate_to_process(driver, wait, agent_number, sentinel=False, app_name=Fal
             'Verifique se o Qlik Sense Desktop está aberto e logado, e se o hub está em modo grade.'
         )
 
+    close_qlik_modal(driver)
+
     for app in apps:
         if app_name in app.text.lower():
-            app.click() # clica no app correto
+            try:
+                app.click() # clica no app correto
+            except ElementClickInterceptedException:
+                logger.warning(f'Clique no app {app_name} interceptado por outro elemento, clicando via JavaScript')
+                close_qlik_modal(driver)
+                driver.execute_script('arguments[0].click();', app)
             sleep(1)
             break
     

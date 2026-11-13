@@ -1,61 +1,110 @@
 from start_process              import StartProcess
-from functools                  import partial
 from common                     import *
 
+import traceback
+
 load_dotenv()
-RABBITMQ_QUEUE = os.getenv('RABBITMQ_QUEUE')
+RABBITMQ_QUEUE  = os.getenv('RABBITMQ_QUEUE')
+MAX_RETRIES     = 5
+POLL_INTERVAL   = 5 # segundos entre consultas à fila quando ela está vazia
 
 
-def return_message(ch, method, retry_count, disc_message_id, headers, body):
+# Por que não usamos basic_consume + ack no final do job:
+# o job roda por dezenas de minutos e, enquanto isso, o pika não manda heartbeat
+# para o RabbitMQ. O broker derruba a conexão, o ack final falha (StreamLostError)
+# e a mensagem volta para a fila, fazendo outro agente reprocessar o mesmo job.
+# Por isso o agente pega UMA mensagem (basic_get), confirma na hora, fecha a conexão
+# e só então processa. O retry é feito republicando a mensagem em caso de falha,
+# e o estado do job continua no Firestore.
+
+
+def requeue_message(retry_count, job_id, headers, body):
     retry_count += 1
-    if retry_count >= 5:
-        logger.info(f"Descartando mensagem após {retry_count} tentativas")
-        ch.basic_ack(method.delivery_tag)  # remove permanentemente
-    else:
-        # Atualiza headers com novo contador e reenfileira
-        new_properties = pika.BasicProperties(
-            headers={**headers, 'x-retry-count': retry_count, 'disc_message_id': disc_message_id}
-        )
+    if retry_count >= MAX_RETRIES:
+        logger.info(f'Descartando job {job_id} após {retry_count} tentativas')
+        return
 
-        ch.basic_ack(method.delivery_tag)  # remove original
-        ch.basic_publish(
-            exchange='',
-            routing_key=RABBITMQ_QUEUE,
-            body=body,
-            properties=new_properties
-        ) # posta a cópia com retry_count+1
+    properties = pika.BasicProperties(
+        headers={**headers, 'x-retry-count': retry_count, 'disc_message_id': job_id}
+    )
+
+    for attempt in range(1, 4):
+        try:
+            channel, connection = connection_rabbitmq()
+            try:
+                channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
+                channel.basic_publish(
+                    exchange='',
+                    routing_key=RABBITMQ_QUEUE,
+                    body=body,
+                    properties=properties
+                )
+            finally:
+                connection.close()
+
+            logger.info(f'Job {job_id} recolocado na fila (tentativa {retry_count + 1}/{MAX_RETRIES})')
+            return
+        except Exception as error:
+            logger.error(f'Erro ao recolocar o job {job_id} na fila ({attempt}/3): {error}')
+            sleep(10)
+
+    logger.error(f'Não foi possível recolocar o job {job_id} na fila, ele foi perdido')
 
 
-def get_retry_message(headers):
-    retry_count = headers.get('x-retry-count', 0)
-    return retry_count
+def get_next_message():
+    # espera a próxima mensagem, confirma (ack) e fecha a conexão antes de processar
+    channel, connection = connection_rabbitmq()
+    try:
+        channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
+
+        while True:
+            if restart_pending():
+                connection.sleep(POLL_INTERVAL) # restart agendado: não pega jobs novos
+                continue
+
+            method, properties, body = channel.basic_get(queue=RABBITMQ_QUEUE, auto_ack=False)
+            if method is None:
+                connection.sleep(POLL_INTERVAL) # connection.sleep mantém os heartbeats em dia
+                continue
+
+            channel.basic_ack(delivery_tag=method.delivery_tag)
+            return properties, body
+    finally:
+        try:
+            connection.close()
+        except Exception:
+            pass
 
 
-def callback(ch, method, properties, body, agent_number):
+def process_message(properties, body, agent_number):
     headers = properties.headers or {}
-    retry_count = get_retry_message(headers)
-    message_json = json.loads(body.decode('utf-8'))
-    success = StartProcess(agent_number, retry_count, message_json['job_id']).run()
+    retry_count = headers.get('x-retry-count', 0)
 
-    if success:
-        ch.basic_ack(delivery_tag = method.delivery_tag)
-    else:
-        return_message(ch, method, retry_count, message_json['job_id'], headers, body)
+    try:
+        job_id = json.loads(body.decode('utf-8'))['job_id']
+    except Exception:
+        logger.error(f'Mensagem inválida descartada: {body!r}')
+        return
+
+    # marca o agente como ocupado já aqui, para o outro agente não fechar o qlik
+    # enquanto este ainda está abrindo/preparando o processo
+    set_agent_state(agent_number, 'running')
+    try:
+        success = StartProcess(agent_number, retry_count, job_id).run()
+    except Exception:
+        logger.error(f'Erro ao processar o job {job_id}: {traceback.format_exc()}')
+        success = False
+    finally:
+        set_agent_state(agent_number, 'stopped')
+
+    if not success:
+        requeue_message(retry_count, job_id, headers, body)
 
 
 def start_consumer(agent):
-    channel, connection = connection_rabbitmq()
-    channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
-    channel.basic_qos(prefetch_count=1)
-
-    callback_with_args = partial(callback, agent_number=agent)
-
-    channel.basic_consume(
-        queue=RABBITMQ_QUEUE,
-        on_message_callback=callback_with_args
-    )
-
-    channel.start_consuming()
+    while True:
+        properties, body = get_next_message()
+        process_message(properties, body, agent)
 
 
 def start_local():
