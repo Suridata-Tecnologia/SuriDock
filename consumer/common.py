@@ -17,7 +17,8 @@ from selenium.webdriver.chrome.options          import Options
 from selenium.webdriver.chrome.service          import Service
 from zipfile                                    import ZipFile
 from loguru                                     import logger
-from time                                       import sleep
+from time                                       import sleep, monotonic
+from contextlib                                 import contextmanager
 from selenium.webdriver.common.by               import By
 from selenium.common.exceptions                 import TimeoutException, ElementClickInterceptedException
 from selenium.webdriver.common.keys             import Keys
@@ -30,6 +31,7 @@ import psutil
 import pika
 import json
 import os
+import msvcrt
 import re
 import sys
 
@@ -191,7 +193,11 @@ def open_and_start_qlik(agent_number):
             qlik_app.minimize()
             sleep(3)
             return qlik_app
-    
+
+        qlik_titles = sorted({t for t in window_list if 'qlik' in t.lower()})
+        logger.error(f'agent{agent_number}: abriu o qlik mas não encontrou a janela "Qlik Sense Desktop" '
+                     f'após {attempts} tentativas. Janelas do qlik encontradas: {qlik_titles}')
+
     return False
 
 
@@ -255,20 +261,64 @@ def restart_pending():
     return age < RESTART_FLAG_MAX_AGE
 
 
+QLIK_LOCK_PATH = Path('config/qlik_start.lock')
+
+
+@contextmanager
+def qlik_start_lock(agent_number, timeout=900):
+    # trava entre os agentes para só um abrir/reiniciar o qlik por vez. Se os dois abrem
+    # ao mesmo tempo, as instâncias brigam e nenhum agente encontra a janela.
+    # usa lock do Windows no arquivo: é liberado automaticamente se o processo morrer.
+    QLIK_LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    lock_file = open(QLIK_LOCK_PATH, 'a+')
+    started = monotonic()
+    waiting_logged = False
+
+    try:
+        while True:
+            try:
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                break
+            except OSError:
+                if not waiting_logged:
+                    logger.info(f'agent{agent_number} aguardando outro agente terminar de abrir o qlik...')
+                    waiting_logged = True
+                if monotonic() - started > timeout:
+                    raise TimeoutError(f'agent{agent_number} esperou {timeout}s pela trava de abertura do qlik')
+                sleep(2)
+
+        try:
+            yield
+        finally:
+            lock_file.seek(0)
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+    finally:
+        lock_file.close()
+
+
 def ensure_qlik_ready(agent_number):
-    # garante que o qlik está aberto E que o hub responde na porta 4848.
-    # só a janela existir não basta: ela pode estar fechando (outro agente acabou de matar o qlik)
-    if is_qlik_running():
-        if wait_qlik_hub(timeout=60):
+    # garante que o hub do qlik responde na porta 4848 (só a janela existir não basta)
+    with qlik_start_lock(agent_number):
+        # caminho comum: qlik já aberto e funcionando (inclusive se outro agente acabou de abrir)
+        if wait_qlik_hub(timeout=5):
             return True
-        logger.warning(f'agent{agent_number}: janela do qlik aberta mas o hub (porta 4848) não responde, reiniciando o qlik...')
+
+        if is_qlik_running():
+            # janela aberta: pode estar terminando de iniciar, dá um tempo
+            if wait_qlik_hub(timeout=60):
+                return True
+            logger.warning(f'agent{agent_number}: janela do qlik aberta mas o hub (porta 4848) não responde, reiniciando o qlik...')
+
+        # hub fora do ar: nenhum agente consegue estar usando o qlik, então é seguro
+        # matar o que sobrou (processos travados/sem janela) antes de abrir de novo
         close_process('qlik')
         sleep(5)
 
-    if not open_and_start_qlik(agent_number):
-        return False
+        if not open_and_start_qlik(agent_number):
+            return False
 
-    return wait_qlik_hub(timeout=10)
+        return wait_qlik_hub(timeout=10)
 
 
 def is_qlik_running():
