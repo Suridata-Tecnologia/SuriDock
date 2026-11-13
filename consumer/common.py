@@ -17,17 +17,23 @@ from selenium.webdriver.chrome.options          import Options
 from selenium.webdriver.chrome.service          import Service
 from zipfile                                    import ZipFile
 from loguru                                     import logger
-from time                                       import sleep
+from time                                       import sleep, monotonic
+from contextlib                                 import contextmanager
 from selenium.webdriver.common.by               import By
+from selenium.common.exceptions                 import TimeoutException, ElementClickInterceptedException
+from selenium.webdriver.common.keys             import Keys
 from anticaptchaofficial.recaptchav2proxyless   import *
 
 import subprocess
+import threading
 import requests
 import psutil
 import pika
 import json
 import os
+import msvcrt
 import re
+import sys
 
 
 
@@ -49,13 +55,22 @@ link_to_suripoint = 'https://suripoint-backend-87769041781.us-east1.run.app/' # 
 
 
 
-def save_logs():
-    logs_path = Path.cwd().joinpath('logs/script.log')
+def save_logs(agent_number=None):
+    # um arquivo por agente: se todos usassem o mesmo, um agente não conseguiria
+    # apagá-lo enquanto o outro está com ele aberto (WinError 32)
+    log_name = f'script-agent{agent_number}.log' if agent_number else 'script-local.log'
+    logs_path = Path.cwd().joinpath('logs', log_name)
     if logs_path.exists():
         try:
             logs_path.unlink()
         except Exception as error:
             logger.error(f'não foi possível excluir o arquivo de logs: {error}')
+
+    # console: o loguru escreve tudo no stderr por padrão, e o pm2 marca stderr como erro
+    # (prefixo vermelho e arquivo *-error.log). Info/warning vão para o stdout, só erros para o stderr.
+    logger.remove()
+    logger.add(sys.stdout, level='DEBUG', filter=lambda record: record['level'].no < 40)
+    logger.add(sys.stderr, level='ERROR')
 
     # salva os logs
     logger.add(logs_path)
@@ -127,11 +142,21 @@ def find_qlik_path():
         return False
     
 
+def wait_qlik_hub(timeout=180):
+    # o engine do qlik só sobe a porta 4848 depois do "iniciar"
+    for _ in range(timeout // 5):
+        try:
+            if requests.get('http://localhost:4848/hub/my/work', timeout=5).status_code == 200:
+                return True
+        except requests.RequestException:
+            pass
+        sleep(5)
+    return False
+
+
 def open_and_start_qlik(agent_number):
     qlik_path = find_qlik_path()
     if qlik_path:
-        subprocess.Popen(qlik_path)
-        sleep(5)
         app = Application(backend='uia').start(str(qlik_path))
 
         qlik_window = None
@@ -151,15 +176,28 @@ def open_and_start_qlik(agent_number):
 
         if qlik_window:
             qlik_app = app.window(handle=qlik_window)
-            qlik_app.set_focus()
             try:
-                qlik_app.child_window(title='Iniciar', control_type='Button').click_input()
-            except:
-                logger.warning(f'agent{agent_number} não conseguiu clicar em "iniciar" no qlik')
+                # o conteúdo da janela (e o botão) carrega alguns segundos depois da janela aparecer
+                start_button = qlik_app.child_window(title='Iniciar', control_type='Button')
+                start_button.wait('exists enabled', timeout=90, retry_interval=2)
+                # clica via automação (funciona mesmo com a sessão minimizada/RDP desconectado).
+                # o invoke() pode ficar bloqueado até o qlik terminar de iniciar, por isso roda numa thread
+                threading.Thread(target=start_button.invoke, daemon=True).start()
+            except Exception as error:
+                logger.warning(f'agent{agent_number} não conseguiu clicar em "iniciar" no qlik: {error}')
+
+            if wait_qlik_hub():
+                logger.info(f'agent{agent_number} iniciou o qlik (hub respondendo na porta 4848)')
+            else:
+                logger.error(f'agent{agent_number}: hub do qlik não respondeu na porta 4848 após clicar em "iniciar"')
             qlik_app.minimize()
             sleep(3)
             return qlik_app
-    
+
+        qlik_titles = sorted({t for t in window_list if 'qlik' in t.lower()})
+        logger.error(f'agent{agent_number}: abriu o qlik mas não encontrou a janela "Qlik Sense Desktop" '
+                     f'após {attempts} tentativas. Janelas do qlik encontradas: {qlik_titles}')
+
     return False
 
 
@@ -170,6 +208,117 @@ def close_process(process_name):
                 proc.kill()
     except Exception as error:
         logger.error(f'psutil não conseguiu fechar o {process_name}: {error}')
+
+
+QLIK_USE_PATH       = Path('config/qlik_use.txt')
+RESTART_FLAG_PATH   = Path('config/restart_pending')
+RESTART_FLAG_MAX_AGE = 2 * 3600 + 600  # flag mais velha que isso é considerada esquecida
+AGENT_SLOTS         = 4
+
+
+def read_agent_states():
+    # config/qlik_use.txt: "agent1-stopped ## agent2-running ## ..." - estado de cada agente
+    if not QLIK_USE_PATH.exists():
+        QLIK_USE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        QLIK_USE_PATH.write_text(
+            ' ## '.join(f'agent{n}-stopped' for n in range(1, AGENT_SLOTS + 1)),
+            encoding='utf-8'
+        )
+
+    agents = [a.strip() for a in QLIK_USE_PATH.read_text(encoding='utf-8').split(' ## ') if a.strip()]
+    present = {a.split('-')[0] for a in agents}
+    for n in range(1, AGENT_SLOTS + 1):
+        if f'agent{n}' not in present:
+            agents.append(f'agent{n}-stopped')
+
+    return sorted(agents, key=lambda a: int(a.split('-')[0].replace('agent', '')))
+
+
+def set_agent_state(agent_number, state):
+    agents = read_agent_states()
+    agents[agent_number - 1] = f'agent{agent_number}-{state}'
+    QLIK_USE_PATH.write_text(' ## '.join(agents), encoding='utf-8')
+
+
+def running_agents(exclude=None):
+    # lista os agentes marcados como "running", ignorando o próprio agente (exclude)
+    return [
+        a.split('-')[0] for a in read_agent_states()
+        if a.endswith('-running') and a.split('-')[0] != f'agent{exclude}'
+    ]
+
+
+def restart_pending():
+    # o restart.py cria essa flag para os agentes pararem de pegar jobs novos antes do "pm2 restart all"
+    if not RESTART_FLAG_PATH.exists():
+        return False
+
+    try:
+        age = datetime.now().timestamp() - RESTART_FLAG_PATH.stat().st_mtime
+    except FileNotFoundError:
+        return False
+
+    return age < RESTART_FLAG_MAX_AGE
+
+
+QLIK_LOCK_PATH = Path('config/qlik_start.lock')
+
+
+@contextmanager
+def qlik_start_lock(agent_number, timeout=900):
+    # trava entre os agentes para só um abrir/reiniciar o qlik por vez. Se os dois abrem
+    # ao mesmo tempo, as instâncias brigam e nenhum agente encontra a janela.
+    # usa lock do Windows no arquivo: é liberado automaticamente se o processo morrer.
+    QLIK_LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    lock_file = open(QLIK_LOCK_PATH, 'a+')
+    started = monotonic()
+    waiting_logged = False
+
+    try:
+        while True:
+            try:
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                break
+            except OSError:
+                if not waiting_logged:
+                    logger.info(f'agent{agent_number} aguardando outro agente terminar de abrir o qlik...')
+                    waiting_logged = True
+                if monotonic() - started > timeout:
+                    raise TimeoutError(f'agent{agent_number} esperou {timeout}s pela trava de abertura do qlik')
+                sleep(2)
+
+        try:
+            yield
+        finally:
+            lock_file.seek(0)
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+    finally:
+        lock_file.close()
+
+
+def ensure_qlik_ready(agent_number):
+    # garante que o hub do qlik responde na porta 4848 (só a janela existir não basta)
+    with qlik_start_lock(agent_number):
+        # caminho comum: qlik já aberto e funcionando (inclusive se outro agente acabou de abrir)
+        if wait_qlik_hub(timeout=5):
+            return True
+
+        if is_qlik_running():
+            # janela aberta: pode estar terminando de iniciar, dá um tempo
+            if wait_qlik_hub(timeout=60):
+                return True
+            logger.warning(f'agent{agent_number}: janela do qlik aberta mas o hub (porta 4848) não responde, reiniciando o qlik...')
+
+        # hub fora do ar: nenhum agente consegue estar usando o qlik, então é seguro
+        # matar o que sobrou (processos travados/sem janela) antes de abrir de novo
+        close_process('qlik')
+        sleep(5)
+
+        if not open_and_start_qlik(agent_number):
+            return False
+
+        return wait_qlik_hub(timeout=10)
 
 
 def is_qlik_running():
@@ -249,14 +398,31 @@ def edit_script_qvs(script_path, company_name, activity, language, month_analysi
     with open(script_path, 'r', encoding='utf-8') as f:
         script_lines = f.readlines()
 
-    script_lines[10] = f"let vG_ClientName  = '{company_name.upper()}'; //<--- NOME DO CLIENTE EM LETA minúscula - conforme pasta do Drive\n"
+    min_lines = 11 if sentinel else 30
+    if len(script_lines) < min_lines:
+        raise ValueError(
+            f'Script {script_path} tem {len(script_lines)} linhas (mínimo {min_lines}). '
+            'O arquivo pode estar vazio/corrompido - restaure-o antes de rodar.'
+        )
+
+    script_lines[10] =f"let vG_ClientName  = '{company_name.upper()}'; //<--- NOME DO CLIENTE EM LETA minúscula - conforme pasta do Drive\n"
     if not sentinel:
         script_lines[13] = f"let vG_Atividadeda = '{activity}';  // o que você quer fazer?\n"
         script_lines[26] = f"let vG_Idioma = '{language}'; // <--- Idioma em que se deseja apresentar os slides depois do reload (sem acento). Valores possíveis:\n"
         script_lines[29] = f"LET vG_MesAnalise = '{month_analysis}';          // não -> padrão \n"
         
-    with open(script_path, 'w', encoding='utf-8') as f:
-        f.writelines(script_lines)
+    # grava num arquivo temporário e só depois substitui o original, para que
+    # uma interrupção no meio da escrita não deixe o .qvs vazio
+    tmp_path = Path(script_path).with_name(Path(script_path).name + '.tmp')
+    try:
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            f.writelines(script_lines)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, script_path)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
 
     logger.info(f'Editou o arquivo {script_path} do qlik pra rodar a empresa {company_name}')
 
@@ -274,24 +440,67 @@ def init_browser(download_path='.'):
     return webdriver.Chrome(service=service, options=chrome_options)
 
 
+def close_qlik_modal(driver, timeout=5):
+    # o hub do qlik às vezes abre um pop-up (spam) que cobre a lista de apps;
+    # ele reaparece a cada recarregamento do hub, então precisa ser fechado antes de cada clique
+    try:
+        WebDriverWait(driver, timeout).until(
+            EC.element_to_be_clickable((By.XPATH, '/html/body/div[2]/div/div/div/div[2]/div[1]/button/span'))
+        ).click()
+    except Exception:
+        pass
+
+    modal = (By.CSS_SELECTOR, '.lui-modal-background')
+    try:
+        WebDriverWait(driver, 10).until(EC.invisibility_of_element_located(modal))
+        return
+    except TimeoutException:
+        pass
+
+    # botão de fechar não encontrado: tenta fechar com ESC
+    logger.warning('Pop-up do Qlik continua aberto, tentando fechar com ESC...')
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+    try:
+        WebDriverWait(driver, 5).until(EC.invisibility_of_element_located(modal))
+    except TimeoutException:
+        logger.warning('Não foi possível fechar o pop-up do Qlik')
+
+
 def navigate_to_process(driver, wait, agent_number, sentinel=False, app_name=False):
     driver.get('http://localhost:4848/hub/my/work')
     driver.maximize_window()
-    
-    try: # colocado um try por conta do spam não aparecer a vezes
-        wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div/div/div/div[2]/div[1]/button/span')))
-        driver.find_element(By.XPATH, '/html/body/div[2]/div/div/div/div[2]/div[1]/button/span').click()
-    except:
-        pass
+
+    close_qlik_modal(driver, timeout=wait._timeout)
 
     if not app_name:
         app_name = f'sentinel{agent_number}' if sentinel else f'agent{agent_number}'
 
-    apps = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.hub-ul.qv-grid.ng-scope > li')))
+    # o hub pode demorar (ou o Qlik Desktop pode estar iniciando): tenta algumas vezes recarregando
+    apps = None
+    for attempt in range(3):
+        try:
+            apps = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.hub-ul.qv-grid.ng-scope > li')))
+            break
+        except TimeoutException:
+            logger.warning(f'Lista de apps do Qlik não carregou (tentativa {attempt + 1}/3), recarregando o hub...')
+            driver.get('http://localhost:4848/hub/my/work')
+
+    if not apps:
+        raise TimeoutException(
+            'Hub do Qlik (localhost:4848) não listou os apps. '
+            'Verifique se o Qlik Sense Desktop está aberto e logado, e se o hub está em modo grade.'
+        )
+
+    close_qlik_modal(driver)
 
     for app in apps:
         if app_name in app.text.lower():
-            app.click() # clica no app correto
+            try:
+                app.click() # clica no app correto
+            except ElementClickInterceptedException:
+                logger.warning(f'Clique no app {app_name} interceptado por outro elemento, clicando via JavaScript')
+                close_qlik_modal(driver)
+                driver.execute_script('arguments[0].click();', app)
             sleep(1)
             break
     

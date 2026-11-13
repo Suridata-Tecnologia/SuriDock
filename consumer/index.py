@@ -21,9 +21,22 @@ if not agent_local:
         raise ValueError(f'o número do agente precisa estar entre 1 a 2')
 
 print(pyfiglet.figlet_format('SuriDock', font='slant'))
-close_process('chrome')
-close_process('qlik')
-save_logs()
+save_logs(agent_number)
+
+if agent_local:
+    close_process('chrome')
+    close_process('qlik')
+else:
+    # se este agente caiu no meio de um job, o estado dele ficou "running": zera
+    set_agent_state(agent_number, 'stopped')
+
+    # só fecha chrome/qlik se nenhum outro agente estiver no meio de um processo
+    others = running_agents(exclude=agent_number)
+    if others:
+        logger.info(f'{", ".join(others)} usando o qlik, agent{agent_number} não vai fechar qlik e chrome')
+    else:
+        close_process('chrome')
+        close_process('qlik')
 
 while not agent_local:
     try:

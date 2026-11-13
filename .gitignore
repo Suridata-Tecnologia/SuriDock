@@ -4,3 +4,9 @@ downloads
 config
 .env
 logs
+
+# JetBrains (PyCharm/IntelliJ)
+.idea/
+*.iml
+*.iws
+*.ipr
