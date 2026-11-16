@@ -5,6 +5,7 @@ from extensions.storage      import Storage
 from extensions.adobe_api    import Convert
 from extensions.trello       import Trello
 from common                  import *
+from selenium.webdriver.common.keys import Keys
 
 import os
 
@@ -132,6 +133,18 @@ class FivePageSecond():
         self.driver.maximize_window()
 
 
+    def __save_debug(self, nome):
+        try:
+            debug_path = Path.cwd().joinpath('downloads', 'debug')
+            debug_path.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            self.driver.save_screenshot(str(debug_path.joinpath(f'{nome}_{stamp}.png')))
+            debug_path.joinpath(f'{nome}_{stamp}.html').write_text(self.driver.page_source, encoding='utf-8')
+            logger.info(f'Debug salvo em {debug_path}')
+        except Exception as e:
+            logger.warning(f'Falha ao salvar debug: {e}')
+
+
     def __download_pdf(self):
         # Fechando o novo spam caso apareça
         try:
@@ -145,43 +158,94 @@ class FivePageSecond():
         self.__discord_message('aguardando a página carregar', 48)
         sleep(70)
 
+        # Remove o conteúdo do relatório: assim o clique direito cai no fundo do canvas
+        # (menu do relatório) e não em um gráfico (menu do componente).
         try:
-            element_to_delete = self.driver.find_element(By.CSS_SELECTOR, '#body > div.lego-reporting-view.activity-view.no-licensed.new-resizer > div.pancake-view > ng2-reporting-plate > plate > div > div > div > div:nth-child(1) > div > div > div > div > div > canvas-pancake-adapter > canvas-layout > div > div > div.mainBlockHolder > div > div > div > ng2-report > ng2-canvas-container > div')
-        except:
-            element_to_delete = self.driver.find_element(By.CSS_SELECTOR, '#body > div > div.pancake-view > ng2-reporting-plate > plate > div > div > div > div:nth-child(1) > div > div > div > div > div > canvas-pancake-adapter > canvas-layout > div > div.mainBlockHolder > div > div > div > ng2-report > ng2-canvas-container > div')
-
-        self.driver.execute_script('var element = arguments[0]; element.parentNode.removeChild(element);', element_to_delete)
-
-        sleep(1)
-
-        actionchains = ActionChains(self.driver)
-        actionchains.context_click(self.driver.find_element(By.CSS_SELECTOR, '#body > div > div.pancake-view > ng2-reporting-plate > plate > div > div > div > div:nth-child(1) > div > div > div > div > div > canvas-pancake-adapter > canvas-layout > div')).perform()
+            element_to_delete = self.driver.find_element(By.CSS_SELECTOR, 'ng2-report > ng2-canvas-container > div')
+            self.driver.execute_script('arguments[0].remove();', element_to_delete)
+        except Exception:
+            logger.warning('Conteúdo do canvas não encontrado para remoção, seguindo mesmo assim')
 
         sleep(1)
-        self.driver.find_element(by='css selector', value='#mat-menu-panel-0 > div > span > button').click()
-        sleep(2)
 
-        self.driver.find_element(By.XPATH, '/html/body/div[6]/md-dialog/md-dialog-content/div[1]/div[3]/div[1]/md-radio-group/md-radio-button[2]').click()
+        # O Looker Studio mudou: 'canvas-layout > div' agora tem altura 0, e quem recebe o
+        # clique direito é o '.mainBlock'. Clicamos na lateral direita dele, fora da área do relatório.
+        # O id do menu (mat-menu-panel-N) é dinâmico, então aceitamos qualquer botão do painel.
+        menu_buttons_selector = '[id^="mat-menu-panel-"] button, .cdk-overlay-pane [role="menuitem"]'
 
-        self.driver.find_element(By.XPATH, '/html/body/div[6]/md-dialog/md-dialog-content/div[1]/div[3]/div[1]/div/ul/li[2]/div[1]').click()
-        self.driver.find_element(By.XPATH, '/html/body/div[6]/md-dialog/md-dialog-content/div[1]/div[3]/div[1]/div/ul/li[3]/div[1]').click()
-        self.driver.find_element(By.XPATH, '/html/body/div[6]/md-dialog/md-dialog-content/div[1]/div[3]/div[1]/div/ul/li[4]/div[1]').click()
-        self.driver.find_element(By.XPATH, '/html/body/div[6]/md-dialog/md-dialog-content/div[1]/div[3]/div[1]/div/ul/li[5]/div[1]').click()
-        self.driver.find_element(By.XPATH, '/html/body/div[6]/md-dialog/md-dialog-content/div[1]/div[3]/div[1]/div/ul/li[6]/div[1]').click()
-        self.driver.find_element(By.XPATH, '/html/body/div[6]/md-dialog/md-dialog-content/div[1]/div[3]/div[1]/div/ul/li[7]/div[1]').click()
-        self.driver.find_element(By.XPATH, '/html/body/div[6]/md-dialog/md-dialog-content/div[1]/div[3]/div[1]/div/ul/li[8]/div[1]').click()
+        def visible_menu_buttons(driver):
+            buttons = [b for b in driver.find_elements(By.CSS_SELECTOR, menu_buttons_selector) if b.is_displayed()]
+            return buttons or False
 
-        self.driver.find_element(by='css selector', value='body > div.md-dialog-container > md-dialog > md-dialog-actions > button.md-accent.md-raised.md-button.md-data-studio-theme.md-ink-ripple').click()
+        menu_buttons = None
+        for tentativa in range(3):
+            main_block = self.driver.find_element(By.CSS_SELECTOR, '.mainBlock')
+            offset_x = 0 if tentativa == 1 else main_block.size['width'] // 2 - 40  # centro ou lateral direita
+            ActionChains(self.driver).move_to_element_with_offset(main_block, offset_x, 0).context_click().perform()
+            try:
+                menu_buttons = WebDriverWait(self.driver, 10).until(visible_menu_buttons)
+                if any('pdf' in b.text.lower() for b in menu_buttons):
+                    break
+                logger.warning(f'Menu sem opção de PDF: {[b.text.strip() for b in menu_buttons]}')
+                ActionChains(self.driver).send_keys(Keys.ESCAPE).perform()
+                menu_buttons = None
+                sleep(1)
+            except TimeoutException:
+                logger.warning(f'Menu de contexto não apareceu (tentativa {tentativa + 1}/3)')
 
-        sleep(1)
-        retorno = self.driver.execute_script("return document.querySelector('body > md-toast > div > span')")
+        if not menu_buttons:
+            self.__save_debug('menu_contexto')
+            raise TimeoutException('Menu de contexto com opção de PDF não apareceu após o clique direito')
 
-        while retorno:
-            sleep(1)
-            retorno = self.driver.execute_script("return document.querySelector('body > md-toast > div > span')")
+        next(b for b in menu_buttons if 'pdf' in b.text.lower()).click()
 
+        # Dialog "Baixar o relatório (PDF)" (agora Angular Material, dentro do cdk-overlay)
+        try:
+            dialog = WebDriverWait(self.driver, 20).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, 'export-pdf-dialog'))
+            )
+            radio = next(r for r in dialog.find_elements(By.CSS_SELECTOR, 'mat-radio-button') if 'Selecionar' in r.text)
+            radio.find_element(By.CSS_SELECTOR, 'input').click()
+
+            # Marca todas as páginas do 5Pages (todas exceto a OnePage)
+            WebDriverWait(self.driver, 10).until(
+                lambda d: dialog.find_elements(By.CSS_SELECTOR, '[cdkdroplist] mat-checkbox')
+            )
+            paginas = []
+            for checkbox in dialog.find_elements(By.CSS_SELECTOR, '[cdkdroplist] mat-checkbox'):
+                nome = checkbox.get_attribute('textContent').strip()
+                if not nome.startswith('5Pages'):
+                    continue
+                input_cb = checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                self.driver.execute_script('arguments[0].scrollIntoView({block: "center"});', input_cb)
+                if not input_cb.is_selected():
+                    self.driver.execute_script('arguments[0].click();', input_cb)
+                paginas.append(nome)
+
+            if not paginas:
+                raise Exception('Nenhuma página "5Pages" encontrada no dialog de download')
+            logger.info(f'Páginas selecionadas para o PDF: {paginas}')
+
+            WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'export-pdf-dialog #download-button'))
+            ).click()
+        except Exception:
+            self.__save_debug('dialog_pdf')
+            raise
+
+        # Aguarda o download terminar (arquivo .pdf sem .crdownload na pasta)
         self.__discord_message('baixando pdf...', 64)
-        sleep(30) # Aguarda o download ser concluído
+        def pdf_baixado(_):
+            pdfs = list(self.download_path.glob('*.pdf'))
+            parciais = list(self.download_path.glob('*.crdownload'))
+            return pdfs if pdfs and not parciais else False
+
+        try:
+            WebDriverWait(self.driver, 300, poll_frequency=2).until(pdf_baixado)
+            sleep(2)
+        except TimeoutException:
+            self.__save_debug('download_pdf')
+            logger.error('PDF não foi baixado em 5 minutos')
         self.driver.close()
 
 

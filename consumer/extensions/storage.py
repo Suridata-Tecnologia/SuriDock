@@ -109,7 +109,9 @@ class Storage():
         except requests.exceptions.ReadTimeout:
             response = None
 
-        if not response:
+        # "is None" e não "not response": um Response com status >= 400 é falso em Python,
+        # e o 500 cairia aqui em vez de no ramo dele abaixo
+        if response is None:
             logger.error(f'Suripoint não respondeu, e provavelmente deu ruim')
             return False
         if response.status_code == 200:

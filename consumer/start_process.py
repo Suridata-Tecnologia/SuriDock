@@ -16,8 +16,7 @@ class StartProcess():
         self.job_id             = job_id
         self.firestore_data     = job_data
         self.local_mode         = job_data is not None
-        
-        self.qlik_use = Path('config/qlik_use.txt')
+
 
         self.apps = {
             'relatorioppt': {'class': RelatorioPPT, 'pretty_name': 'Relatório PPT'},
@@ -66,41 +65,19 @@ class StartProcess():
             if not folder.exists():
                 folder.mkdir(parents=True)
 
-        if not self.qlik_use.exists():
-            if not self.qlik_use.parent.exists():
-                self.qlik_use.parent.mkdir(parents=True)
-
-            with open(self.qlik_use, 'w', encoding='utf-8') as f:
-                f.write(f'agent1-stopped ## agent2-stopped ## agent3-stopped ## agent4-stopped')
+        read_agent_states() # cria o config/qlik_use.txt se não existir
 
 
     def __set_state_agent(self, state):
-        with open(self.qlik_use, 'r', encoding='utf-8') as f:
-            content = f.read()
-
-        agents = content.split(' ## ')
-        agents[self.agent_number-1] = f'agent{self.agent_number}-{state}'
-
-        new_content = ''
-        for agent in agents:
-            new_content += f'{agent} ## '
-        new_content = new_content[:-4]
-
-        with open(self.qlik_use, 'w', encoding='utf-8') as f:
-                f.write(new_content)
+        set_agent_state(self.agent_number, state)
 
 
     def __close_qlik(self):
-        with open(self.qlik_use, 'r', encoding='utf-8') as f:
-            content = f.read()
+        others = running_agents(exclude=self.agent_number)
+        if others:
+            logger.info(f'{others[0]} usando o qlik, portanto o agent{self.agent_number} o manterá aberto.')
+            return False
 
-        agents = content.split(' ## ')
-
-        for agent in agents:
-            if 'running' in agent:
-                logger.info(f'{agent.split('-')[0]} usando o qlik, portando o agent{self.agent_number} o manterá aberto.')
-                return False
-            
         logger.info(f'Nenhum agente usando o qlik, agent{self.agent_number} fechando qlik e chrome...')
         close_process('chrome')
         close_process('qlik')
@@ -116,13 +93,13 @@ class StartProcess():
             GoogleFirestore('jobs').set_job(self.job_id, {'status': 'running'})
         self.__create_necessary_files()
         if self.__need_qlik():
-            qlik_app = is_qlik_running()
-            if not qlik_app:
-                qlik_app = open_and_start_qlik(self.agent_number)
-
+            # marca como "running" antes de mexer no qlik para outro agente não fechá-lo no meio do caminho
             self.__set_state_agent('running')
 
             try:
+                if not ensure_qlik_ready(self.agent_number):
+                    raise RuntimeError('O Qlik não ficou disponível (hub em localhost:4848 não respondeu)')
+
                 operation_success = self.apps[self.firestore_data['type_proccess']]['class'](
                     self.agent_number,
                     self.retry_count,
