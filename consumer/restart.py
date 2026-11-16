@@ -71,5 +71,6 @@ def wait_to_restart(seconds):
 
 
 
-clear_stale_flag()
-wait_to_restart(10800) # 3 horas
+if __name__ == '__main__':
+    clear_stale_flag()
+    wait_to_restart(10800) # 3 horas
