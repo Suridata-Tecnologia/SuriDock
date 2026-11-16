@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest
+# o Windows não tem a base de fusos horários (o contêiner Linux tem); o common.py usa America/Sao_Paulo
+tzdata
