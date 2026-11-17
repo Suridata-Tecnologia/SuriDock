@@ -5,8 +5,28 @@ from extensions.storage         import Storage
 from extensions.pipe            import Pipe
 from common                     import *
 
+from datetime import datetime
+
 import traceback
 
+
+ERROR_SUMMARY_LIMIT = 200      # o resumo aparece no card do Discord
+ERROR_TRACEBACK_LIMIT = 2000   # final do traceback guardado no Firestore
+
+
+def summarize_error(error, limit=ERROR_SUMMARY_LIMIT):
+    """Uma linha com o tipo e a mensagem da exceção, ex.: 'ValueError: script vazio'.
+
+    Só a primeira linha da mensagem: exceções do Selenium trazem o stacktrace do
+    Chrome logo abaixo, e isso não cabe no card.
+    """
+    lines = [line.strip() for line in str(error).splitlines() if line.strip()]
+    summary = type(error).__name__
+    if lines:
+        summary += f': {lines[0]}'
+    if len(summary) > limit:
+        summary = summary[:limit - 3] + '...'
+    return summary
 
 
 class StartProcess():
@@ -16,6 +36,7 @@ class StartProcess():
         self.job_id             = job_id
         self.firestore_data     = job_data
         self.local_mode         = job_data is not None
+        self.last_error         = None
 
 
         self.apps = {
@@ -85,6 +106,53 @@ class StartProcess():
         return True
 
 
+    def __report_error(self, error):
+        type_proccess = self.firestore_data['type_proccess']
+        pretty_name = self.apps[type_proccess]['pretty_name']
+        timeline_error = traceback.format_exc()
+
+        # vai para o documento do job no Firestore: dá para ver o motivo sem entrar na VM
+        self.last_error = {
+            'summary': summarize_error(error),
+            'traceback': timeline_error[-ERROR_TRACEBACK_LIMIT:],
+            'agent': f'{MACHINE_NAME} agent{self.agent_number}',
+            'retry_count': self.retry_count,
+            'at': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
+        }
+
+        message_data = {
+            'discord_channel': 'sentinel' if type_proccess == 'sentinel' else 'bots',
+            'message_id': self.job_id,
+            'discord_username': self.firestore_data.get('discord_username'),
+            'company': self.firestore_data.get('company_name'),
+            'type_process': pretty_name,
+            'stage': f'Erro: {self.last_error["summary"]}',
+            'progress': 0,
+            'status': 'error',
+            'footer': self.firestore_data['created_at']
+        }
+        publish_message_discord(message_data)
+        logger.error(f'Erro no processo {pretty_name}: {timeline_error}')
+
+
+    def __run_app(self, need_qlik):
+        type_proccess = self.firestore_data['type_proccess']
+        try:
+            if need_qlik and not ensure_qlik_ready(self.agent_number):
+                raise RuntimeError('O Qlik não ficou disponível (hub em localhost:4848 não respondeu)')
+
+            return self.apps[type_proccess]['class'](
+                self.agent_number,
+                self.retry_count,
+                self.job_id,
+                self.firestore_data,
+                self.apps[type_proccess]['pretty_name']
+            ).run()
+        except Exception as error:
+            self.__report_error(error)
+            return False
+
+
     def run(self):
         if not self.__need_run():
             return True
@@ -95,63 +163,12 @@ class StartProcess():
         if self.__need_qlik():
             # marca como "running" antes de mexer no qlik para outro agente não fechá-lo no meio do caminho
             self.__set_state_agent('running')
-
-            try:
-                if not ensure_qlik_ready(self.agent_number):
-                    raise RuntimeError('O Qlik não ficou disponível (hub em localhost:4848 não respondeu)')
-
-                operation_success = self.apps[self.firestore_data['type_proccess']]['class'](
-                    self.agent_number,
-                    self.retry_count,
-                    self.job_id,
-                    self.firestore_data,
-                    self.apps[self.firestore_data['type_proccess']]['pretty_name']
-                ).run()
-            except Exception as error:
-                operation_success = False
-                timeline_error = traceback.format_exc()
-                message_data = {
-                    'discord_channel': 'sentinel' if self.firestore_data['type_proccess'] == 'sentinel' else 'bots',
-                    'message_id': self.job_id,
-                    'discord_username': self.firestore_data['discord_username'] if 'discord_username' in list(self.firestore_data.keys()) else None,
-                    'company': self.firestore_data['company_name'] if 'company_name' in list(self.firestore_data.keys()) else None,
-                    'type_process': self.apps[self.firestore_data['type_proccess']]['pretty_name'],
-                    'stage': 'Ocorreu um erro desconhecido',
-                    'progress': 0,
-                    'status': 'error',
-                    'footer': self.firestore_data['created_at']
-                }
-                publish_message_discord(message_data)
-                logger.error(f'Erro no processo {self.apps[self.firestore_data['type_proccess']]['pretty_name']}: {timeline_error}')
-
+            operation_success = self.__run_app(need_qlik=True)
             self.__set_state_agent('stopped')
             self.__close_qlik()
         else:
-            try:
-                operation_success = self.apps[self.firestore_data['type_proccess']]['class'](
-                    self.agent_number,
-                    self.retry_count,
-                    self.job_id,
-                    self.firestore_data,
-                    self.apps[self.firestore_data['type_proccess']]['pretty_name']
-                ).run()
-            except Exception as error:
-                operation_success = False
-                timeline_error = traceback.format_exc()
-                message_data = {
-                    'discord_channel': 'sentinel' if self.firestore_data['type_proccess'] == 'sentinel' else 'bots',
-                    'message_id': self.job_id,
-                    'discord_username': self.firestore_data['discord_username'],
-                    'company': self.firestore_data['company_name'],
-                    'type_process': self.apps[self.firestore_data['type_proccess']]['pretty_name'],
-                    'stage': 'Ocorreu um erro desconhecido',
-                    'progress': 0,
-                    'status': 'error',
-                    'footer': self.firestore_data['created_at']
-                }
-                publish_message_discord(message_data)
-                logger.error(f'Erro no processo {self.apps[self.firestore_data['type_proccess']]['pretty_name']}: {timeline_error}')
-            
+            operation_success = self.__run_app(need_qlik=False)
+
         if operation_success:
             if not self.__need_run():
                 return True
@@ -166,5 +183,8 @@ class StartProcess():
             return True
         
         if not self.local_mode:
-            GoogleFirestore('jobs').set_job(self.job_id, {'status': 'failed'})
+            failed_data = {'status': 'failed'}
+            if self.last_error:
+                failed_data['error'] = self.last_error
+            GoogleFirestore('jobs').set_job(self.job_id, failed_data)
         return False

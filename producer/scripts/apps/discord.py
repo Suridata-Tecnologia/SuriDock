@@ -167,10 +167,13 @@ class DiscordBot:
         
         # Empresa - Tipo de Processo - Status
         pretty_name = {
-            'queued':       'Na fila',
-            'running':      'Processando',
-            'sorage':       'Storage',
-            'sentinel':     'Sentinela'
+            'queued':         'Na fila',
+            'running':        'Processando',
+            'storage':        'Storage',
+            'sentinel':       'Sentinela',
+            'fivepagefirst':  '5page',
+            'fivepagesecond': '5page',
+            'pipe':           'Pipe'
         }
 
         max_lines = 10
@@ -192,11 +195,16 @@ class DiscordBot:
 
         count = 0
         message = 0
-        for process in list_process:                
-            flag = ':flag_us:' if process[1]['narrative'] else ':flag_br:'
-            formated_process[message]['company_name'] += f'{process[1]['company_name']}\n'
-            formated_process[message]['type_proccess'] += f'{pretty_name[process[1]['type_proccess']]}\n' if process[1]['type_proccess'] != 'relatorioppt' else f'Relatório {flag}\n'
-            formated_process[message]['status'] += f'{pretty_name[process[1]['status']]}\n'
+        for process in list_process:
+            job = process[1]
+            flag = ':flag_us:' if job.get('narrative') else ':flag_br:'
+            # jobs do Pipe são por operadora e não têm company_name
+            company = job.get('company_name') or job.get('operator') or '-'
+            type_proccess = job.get('type_proccess')
+            # .get com o próprio valor como padrão: um tipo novo aparece cru em vez de derrubar o /ver_fila
+            formated_process[message]['company_name'] += f'{company}\n'
+            formated_process[message]['type_proccess'] += f'{pretty_name.get(type_proccess, type_proccess)}\n' if type_proccess != 'relatorioppt' else f'Relatório {flag}\n'
+            formated_process[message]['status'] += f'{pretty_name.get(job['status'], job['status'])}\n'
 
             count += 1
             if count >= 10:
@@ -213,13 +221,18 @@ class DiscordBot:
 
     def _cancel_company_from_firestore(self, companies):
         list_process = ManagerQueue().get_queued_and_running()
+        if not list_process:
+            # fila vazia: o ManagerQueue devolve None
+            return False
+
         companies = companies.split(',')
         cancelled = False
 
         for company in companies:
             company = company.strip().lower()
             for process in list_process:
-                if company == process[1]['company_name'].lower():
+                # jobs do Pipe não têm company_name
+                if company == (process[1].get('company_name') or '').lower():
                     ManagerQueue().cancel_job(process[0])
                     cancelled = True
 
@@ -401,17 +414,17 @@ class DiscordBot:
         if not webhook:
             webhook = self.discord_webhook
 
-            bot_name = 'SuriDock'
-                
-            data = {
-                'username': bot_name,
-                'content': message
-            }
+        bot_name = 'SuriDock'
 
-            result = requests.post(webhook, json=data, headers={'Content-Type': 'application/json'})
-            if not (200 <= result.status_code < 300):
-                logger.error(f'Erro ao enviar a mensagem: {result.status_code}, Resultado: {result.text}')
-                logger.error(f'Menssagem que seria enviada ao discord: {message}')
+        data = {
+            'username': bot_name,
+            'content': message
+        }
+
+        result = requests.post(webhook, json=data, headers={'Content-Type': 'application/json'})
+        if not (200 <= result.status_code < 300):
+            logger.error(f'Erro ao enviar a mensagem: {result.status_code}, Resultado: {result.text}')
+            logger.error(f'Menssagem que seria enviada ao discord: {message}')
 
 
     # ----------------------------------------------------------
