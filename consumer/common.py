@@ -46,6 +46,7 @@ RABBITMQ_PASSWORD   = os.getenv('RABBITMQ_PASSWORD')
 RABBITMQ_MESSAGES   = os.getenv('RABBITMQ_MESSAGES')
 RABBITMQ_FIVEPAGE   = os.getenv('RABBITMQ_FIVEPAGE')
 LOCAL_MODE          = False
+CURRENT_AGENT       = None # número do agente deste processo (cada agente roda num processo do pm2)
 
 
 
@@ -105,9 +106,27 @@ def is_local_mode():
     return LOCAL_MODE
 
 
+def set_current_agent(agent_number):
+    global CURRENT_AGENT
+    CURRENT_AGENT = agent_number
+
+
+def agent_label(agent_number=None):
+    # ex.: "produção 4 agent1". Vai no card do Discord e no campo error do job no Firestore.
+    agent_number = agent_number if agent_number is not None else CURRENT_AGENT
+    if agent_number is None:
+        return None
+    return f'{MACHINE_NAME} agent{agent_number}' if MACHINE_NAME else f'agent{agent_number}'
+
+
 def publish_message_discord(message_data):
     if LOCAL_MODE:
         return
+
+    # todo card mostra qual VM/agente está processando, sem precisar abrir o Firestore
+    label = agent_label()
+    if label and 'agent' not in message_data:
+        message_data = {**message_data, 'agent': label}
 
     channel, connection = connection_rabbitmq()
     channel.queue_declare(queue=RABBITMQ_MESSAGES, durable=True)

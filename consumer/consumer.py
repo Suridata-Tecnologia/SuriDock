@@ -102,6 +102,7 @@ def process_message(properties, body, agent_number):
 
 
 def start_consumer(agent):
+    set_current_agent(agent)
     while True:
         properties, body = get_next_message()
         process_message(properties, body, agent)

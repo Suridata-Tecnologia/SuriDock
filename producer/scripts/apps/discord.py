@@ -360,6 +360,10 @@ class DiscordBot:
         embed.add_field(name='Solicitante', value=message_json.get('discord_username', '-'), inline=True)
         embed.add_field(name='Empresa', value=message_json.get('company', '-'), inline=True)
 
+        # VM e agente que estão processando (consumers antigos não enviam)
+        if message_json.get('agent'):
+            embed.add_field(name='Agente', value=message_json['agent'], inline=True)
+
         if '-' != message_json.get('english', '-'):
             embed.add_field(name='Idioma', value=message_json.get('english', '-'), inline=False)
 

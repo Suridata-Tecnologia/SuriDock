@@ -157,6 +157,22 @@ def test_idioma_so_aparece_quando_enviado(bot):
     assert fields(second.embed)['Idioma'] == 'Português :flag_br:'
 
 
+def test_agente_aparece_ao_lado_da_empresa_quando_enviado(bot):
+    send(bot, status_message(agent='produção 4 agent1'))
+
+    [message] = bot.channels[111].messages.values()
+    names = [field.name for field in message.embed.fields]
+    assert names[:3] == ['Solicitante', 'Empresa', 'Agente']
+    assert fields(message.embed)['Agente'] == 'produção 4 agent1'
+
+
+def test_card_de_consumer_antigo_fica_sem_agente(bot):
+    send(bot, status_message())
+
+    [message] = bot.channels[111].messages.values()
+    assert 'Agente' not in fields(message.embed)
+
+
 @pytest.mark.parametrize('elapsed, expected', [
     (timedelta(minutes=5), 'Concluído em 5 minutos'),
     (timedelta(minutes=95), 'Concluído em 1 hora e 35 minutos'),
