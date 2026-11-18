@@ -308,3 +308,77 @@ def test_pedido_sem_card_do_trello_nao_move_card(second):
 
     assert page._FivePageSecond__move_to_drive() is True
     assert second['trello'] == []
+
+
+# --- login e abertura do dashboard (corrida com o redirecionamento do login) ----
+
+class UrlDriver:
+    """current_url muda a cada get(); 'gets' guarda as URLs pedidas."""
+
+    def __init__(self, urls_after_get=(), current_url='https://portal.suridata.com.br/'):
+        self.urls_after_get = list(urls_after_get)
+        self.current_url = current_url
+        self.gets = []
+
+    def get(self, url):
+        self.gets.append(url)
+        if self.urls_after_get:
+            self.current_url = self.urls_after_get.pop(0)
+
+    def maximize_window(self):
+        pass
+
+
+DASHBOARD = 'https://portal.suridata.com.br/dashboard/MTIz/bmFu/T25lIFBhZ2U=/eA==/1'
+HOME = 'https://portal.suridata.com.br/home'
+
+
+def test_login_que_chega_na_home_libera_o_dashboard(second):
+    page = second['build']()
+    page.driver = UrlDriver(current_url=HOME)
+
+    page._FivePageSecond__wait_login()
+
+
+def test_login_que_nao_termina_salva_print_e_explica(second, monkeypatch):
+    page = second['build']()
+    page.driver = UrlDriver(current_url='https://portal.suridata.com.br/mfa/verify')
+    saved = []
+    monkeypatch.setattr(page, '_FivePageSecond__save_debug', lambda nome: saved.append(nome))
+    monkeypatch.setattr(five_page, 'LOGIN_TIMEOUT', 0.1)
+
+    with pytest.raises(RuntimeError, match='login no portal não terminou.*mfa/verify'):
+        page._FivePageSecond__wait_login()
+
+    assert saved == ['login_portal']
+
+
+def test_dashboard_que_abre_de_primeira(second):
+    page = second['build']()
+    page.url = DASHBOARD
+    page.driver = UrlDriver([DASHBOARD], current_url=HOME)
+
+    page._FivePageSecond__navigate_into_pages()
+
+    assert page.driver.gets == [DASHBOARD]
+
+
+def test_dashboard_que_cai_na_home_e_pedido_de_novo(second):
+    page = second['build']()
+    page.url = DASHBOARD
+    page.driver = UrlDriver([HOME, DASHBOARD], current_url=HOME)
+
+    page._FivePageSecond__navigate_into_pages()
+
+    assert page.driver.gets == [DASHBOARD, DASHBOARD]
+    assert page.driver.current_url == DASHBOARD
+
+
+def test_dashboard_que_nunca_abre_desiste_sem_excecao(second):
+    page = second['build']()
+    page.url = DASHBOARD
+    page.driver = UrlDriver([HOME, HOME, HOME], current_url=HOME)
+
+    page._FivePageSecond__navigate_into_pages()
+
+    assert len(page.driver.gets) == five_page.DASHBOARD_ATTEMPTS

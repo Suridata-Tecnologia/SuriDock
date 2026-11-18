@@ -13,6 +13,10 @@ import os
 load_dotenv()
 SURIPORTAL_USERNAME   = os.getenv('SURIPORTAL_USERNAME')
 SURIPORTAL_PASSWORD   = os.getenv('SURIPORTAL_PASSWORD')
+LOGIN_TIMEOUT         = 30          # segundos esperando o login do portal chegar à /home
+PORTAL_HOME_PATH      = '/home'
+PORTAL_DASHBOARD_PATH = '/dashboard/'
+DASHBOARD_ATTEMPTS    = 2
 
 
 
@@ -125,12 +129,35 @@ class FivePageSecond():
 
         # self.driver.execute_script(f"document.getElementById('g-recaptcha-response').innerHTML = '{solution}'")
         self.driver.find_element(By.ID, 'button_login').click()
+        self.__wait_login()
+
+
+    def __wait_login(self):
+        # Abrir o dashboard antes de o login terminar faz o redirecionamento do login
+        # para a /home passar por cima dele (falhas desde 16/11, após mudanças no login do portal).
+        try:
+            WebDriverWait(self.driver, LOGIN_TIMEOUT).until(lambda driver: PORTAL_HOME_PATH in driver.current_url)
+        except TimeoutException:
+            self.__save_debug('login_portal')
+            raise RuntimeError(
+                f'O login no portal não terminou em {LOGIN_TIMEOUT}s '
+                f'(url atual: {self.driver.current_url}). Print em downloads/debug'
+            )
 
 
     def __navigate_into_pages(self):
         self.__discord_message('navegando entre as páginas do portal suridata', 32)
-        self.driver.get(self.url)
         self.driver.maximize_window()
+        for tentativa in range(1, DASHBOARD_ATTEMPTS + 1):
+            self.driver.get(self.url)
+            if PORTAL_DASHBOARD_PATH in self.driver.current_url:
+                return
+            logger.warning(
+                f'Portal não abriu o dashboard (tentativa {tentativa}/{DASHBOARD_ATTEMPTS}), '
+                f'url atual: {self.driver.current_url}'
+            )
+            sleep(3)
+        # segue mesmo assim: a espera pelo iframe em __download_pdf salva o print e explica a falha
 
 
     def __save_debug(self, nome):
