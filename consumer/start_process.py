@@ -115,7 +115,7 @@ class StartProcess():
         self.last_error = {
             'summary': summarize_error(error),
             'traceback': timeline_error[-ERROR_TRACEBACK_LIMIT:],
-            'agent': f'{MACHINE_NAME} agent{self.agent_number}',
+            'agent': agent_label(self.agent_number),
             'retry_count': self.retry_count,
             'at': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
         }
