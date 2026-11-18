@@ -46,6 +46,8 @@ RABBITMQ_PASSWORD   = os.getenv('RABBITMQ_PASSWORD')
 RABBITMQ_MESSAGES   = os.getenv('RABBITMQ_MESSAGES')
 RABBITMQ_FIVEPAGE   = os.getenv('RABBITMQ_FIVEPAGE')
 LOCAL_MODE          = False
+TRELLO_REVIEW_LIST  = 'Qualidade: Review' # para onde vão os cards de 5Page e PPT que falham (antes "Saúde: Review")
+IFRAME_TIMEOUT      = 30 # segundos esperando o dashboard One Page do portal carregar
 CURRENT_AGENT       = None # número do agente deste processo (cada agente roda num processo do pm2)
 
 

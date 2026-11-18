@@ -91,7 +91,7 @@ class RelatorioPPT():
         else:
             self.__discord_message('erro no qlik', 0, 'error')
         
-        self.__move_card_trello('Saúde: Review') # coluna de quando o processo falha
+        self.__move_card_trello(TRELLO_REVIEW_LIST) # coluna de quando o processo falha
         return False
 
 
