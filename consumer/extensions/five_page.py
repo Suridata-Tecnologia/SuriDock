@@ -152,7 +152,18 @@ class FivePageSecond():
         except:
             pass
 
-        self.driver.switch_to.frame(self.driver.find_element(by='css selector', value='body > div.content-wrapper > iframe'))
+        # o dashboard One Page fica num iframe; se ele não aparecer, o portal mostrou outra tela
+        # (login, sem acesso à empresa, dashboard inexistente). Salva print e HTML para ver qual.
+        try:
+            WebDriverWait(self.driver, IFRAME_TIMEOUT).until(
+                EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, 'body > div.content-wrapper > iframe'))
+            )
+        except TimeoutException:
+            self.__save_debug('iframe_dashboard')
+            raise RuntimeError(
+                f'O dashboard One Page não carregou no portal em {IFRAME_TIMEOUT}s '
+                f'(url atual: {self.driver.current_url}). Print em downloads/debug'
+            )
 
         # Espera até a página carregar
         self.__discord_message('aguardando a página carregar', 48)
@@ -271,15 +282,34 @@ class FivePageSecond():
             self.__move_card_trello('Qualidade: Produtos 6M')
             return True
         
-        self.__move_card_trello('Saúde: Review')
+        self.__move_card_trello(TRELLO_REVIEW_LIST)
         self.__discord_message('erro ao mover o arquivo para o drive', 0, 'error')
         return False
 
 
     def run(self):
         clear_folder(self.download_path)
-        self.__init_browser()
-        self.__login()
-        self.__navigate_into_pages()
-        self.__download_pdf()
+        try:
+            self.__init_browser()
+            self.__login()
+            self.__navigate_into_pages()
+            self.__download_pdf()
+        except Exception:
+            # sem isso o card fica parado em "Qualidade: Processando 6M" e ninguém vê a falha;
+            # se uma nova tentativa der certo, ela move o card para "Qualidade: Produtos 6M"
+            self.__move_card_trello(TRELLO_REVIEW_LIST)
+            raise
+        finally:
+            self.__quit_browser()
         return self.__move_to_drive()
+
+
+    def __quit_browser(self):
+        # a segunda fase não usa o qlik, então ninguém mais fecha esse chrome
+        driver = getattr(self, 'driver', None)
+        if driver is None:
+            return
+        try:
+            driver.quit()
+        except Exception:
+            pass

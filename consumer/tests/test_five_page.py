@@ -212,8 +212,94 @@ def test_sem_pdf_baixado_move_o_card_para_review(second):
     page = second['build']()
 
     assert page._FivePageSecond__move_to_drive() is False
-    assert second['trello'] == [('card-1', 'Saúde: Review')]
+    assert second['trello'] == [('card-1', 'Qualidade: Review')]
     assert second['discord'][-1]['status'] == 'error'
+
+
+class FakeDriver:
+    current_url = 'https://portal.suridata.com.br/login'
+
+    def __init__(self):
+        self.quit_called = False
+
+    def quit(self):
+        self.quit_called = True
+
+
+def browser_steps(page, monkeypatch, failing_step=None):
+    """Troca os passos do navegador por falsos; failing_step lança exceção."""
+    driver = FakeDriver()
+    calls = []
+
+    def step(name):
+        def run():
+            calls.append(name)
+            if name == '_FivePageSecond__init_browser':
+                page.driver = driver
+            if name == failing_step:
+                raise RuntimeError(f'falhou em {name}')
+        return run
+
+    for name in ('_FivePageSecond__init_browser', '_FivePageSecond__login',
+                 '_FivePageSecond__navigate_into_pages', '_FivePageSecond__download_pdf'):
+        monkeypatch.setattr(page, name, step(name))
+    return driver, calls
+
+
+def test_falha_no_navegador_move_o_card_para_review_e_fecha_o_chrome(second, monkeypatch):
+    page = second['build']()
+    driver, _ = browser_steps(page, monkeypatch, failing_step='_FivePageSecond__download_pdf')
+
+    with pytest.raises(RuntimeError):
+        page.run()
+
+    assert second['trello'] == [('card-1', 'Qualidade: Review')]
+    assert driver.quit_called
+
+
+def test_falha_ao_abrir_o_chrome_nao_quebra_ao_fechar(second, monkeypatch):
+    page = second['build']()
+    browser_steps(page, monkeypatch, failing_step='_FivePageSecond__init_browser')
+    page.driver = None
+
+    with pytest.raises(RuntimeError, match='init_browser'):
+        page.run()
+
+    assert second['trello'] == [('card-1', 'Qualidade: Review')]
+
+
+def test_sucesso_fecha_o_chrome_e_entrega(second, monkeypatch):
+    page = second['build']()
+    driver, calls = browser_steps(page, monkeypatch)
+
+    def fake_download():
+        (page.download_path / 'Relatorio.pdf').write_bytes(b'%PDF')
+    monkeypatch.setattr(page, '_FivePageSecond__download_pdf', fake_download)
+
+    assert page.run() is True
+    assert driver.quit_called
+    assert second['trello'] == [('card-1', 'Qualidade: Produtos 6M')]
+
+
+def test_iframe_que_nao_aparece_salva_print_e_explica_o_erro(second, monkeypatch):
+    page = second['build']()
+    page.driver = FakeDriver()
+    saved = []
+    monkeypatch.setattr(page, '_FivePageSecond__save_debug', lambda nome: saved.append(nome))
+
+    class TimeoutWait:
+        def __init__(self, driver, timeout, **kwargs):
+            self.timeout = timeout
+
+        def until(self, condition):
+            raise five_page.TimeoutException()
+
+    monkeypatch.setattr(five_page, 'WebDriverWait', TimeoutWait)
+
+    with pytest.raises(RuntimeError, match='dashboard One Page não carregou'):
+        page._FivePageSecond__download_pdf()
+
+    assert saved == ['iframe_dashboard']
 
 
 def test_pedido_sem_card_do_trello_nao_move_card(second):
