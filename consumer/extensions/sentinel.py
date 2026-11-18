@@ -1,8 +1,15 @@
 from extensions.google_cloud import GoogleStorage
 from extensions.suridata_api import SuridataApi
-from extensions.trello       import Trello
+from extensions.trello       import Trello, get_card_list_name
 
 from common import *
+
+
+# Listas em que o card de uma Sentinela pode estar quando o job começa: a de entrada,
+# a de andamento e a de erro (nova tentativa depois de uma falha no Qlik). Fora delas,
+# alguém tirou o card da fila à mão (ex.: "Operação: Finalizados") e o robô não mexe nele.
+SENTINEL_START_LISTS = ('Operação: Aguardando Processamento', 'Operação: Processamento', 'Operação: Erros')
+SENTINEL_RUNNING_LIST = 'Operação: Processamento'
 
 
 
@@ -36,10 +43,37 @@ class Sentinel():
         publish_message_discord(message_data)
 
 
+    def __card_list(self):
+        if not self.mj['trello_card_id']:
+            return None
+        return get_card_list_name(self.mj['trello_card_id'])
+
+
+    def __card_removed_from_queue(self, allowed_lists):
+        # True se alguém moveu o card para fora das listas esperadas.
+        # Sem card do Trello ou sem resposta do Trello, segue como antes.
+        current = self.__card_list()
+        if current is None:
+            return False
+        if current.strip().lower() in (name.lower() for name in allowed_lists):
+            return False
+        logger.info(f'Card {self.mj["trello_card_id"]} está em "{current}": movido à mão, o robô não mexe nele')
+        self.current_card_list = current
+        return True
+
+
+    def __move_card(self, list_target_name):
+        if not self.mj['trello_card_id']:
+            return
+        if self.__card_removed_from_queue((SENTINEL_RUNNING_LIST,)):
+            return
+        Trello(card_id=self.mj['trello_card_id'], list_target_name=list_target_name).run()
+
+
     def __organize_environment(self):
         self.__discord_message('Editando script do qlik', 0)
         if self.mj['trello_card_id']:
-            Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Processamento').run()
+            Trello(card_id=self.mj['trello_card_id'], list_target_name=SENTINEL_RUNNING_LIST).run()
         edit_script_qvs(
             script_path=self.script_path,
             company_name=self.mj['company_name'],
@@ -61,14 +95,12 @@ class Sentinel():
         navigate_to_process(self.driver, self.wait, self.agent_number, sentinel=True)
         self.__discord_message('Aguardando qlik processar a operadora', 60)
         if not process_company(self.driver):
-            if self.mj['trello_card_id']:
-                Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Erros').run()
+            self.__move_card('Operação: Erros')
             self.__discord_message('Erro no qlik', 0, status='error')
             return False
-        
+
         self.driver.quit()
-        if self.mj['trello_card_id']:
-            Trello(card_id=self.mj['trello_card_id'], list_target_name='Operação: Validação').run()
+        self.__move_card('Operação: Validação')
         return True
     
 
@@ -106,6 +138,10 @@ class Sentinel():
 
 
     def run(self):
+        if self.__card_removed_from_queue(SENTINEL_START_LISTS):
+            # devolve True: o job termina sem nova tentativa e o card fica onde a pessoa deixou
+            self.__discord_message(f'Não executada: o card foi movido para "{self.current_card_list}"', 0, status='pending')
+            return True
         self.__organize_environment()
         self.__init_browser()
         if self.__control_qlik():

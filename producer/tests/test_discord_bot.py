@@ -327,6 +327,83 @@ def test_remover_fila_ignora_jobs_do_pipe(bot, queue):
     assert queue['cancelled'] == ['j2']
 
 
+# --- respostas dos comandos (limite de 3 s do Discord) --------------------------------
+
+class FakeInteraction:
+    def __init__(self):
+        self.events = []
+        outer = self
+
+        class Response:
+            async def defer(self):
+                outer.events.append('defer')
+
+        class Followup:
+            async def send(self, content=None, **kwargs):
+                outer.events.append(('send', content, kwargs.get('embed') is not None))
+
+        class User:
+            id = 42
+            mention = '<@42>'
+
+        self.response = Response()
+        self.followup = Followup()
+        self.user = User()
+
+    async def delete_original_response(self):
+        self.events.append('delete')
+
+
+def run_async(coro):
+    asyncio.run(coro)
+
+
+def test_remover_fila_responde_antes_de_ler_a_fila(bot, queue, monkeypatch):
+    queue['jobs'] = [['j1', job('EMPRESA_A')]]
+    interaction = FakeInteraction()
+    order = []
+    real_cancel = bot._cancel_company_from_firestore
+
+    def cancel(empresas):
+        order.append(list(interaction.events))
+        return real_cancel(empresas)
+
+    monkeypatch.setattr(bot, '_cancel_company_from_firestore', cancel)
+    bot.time_to_delete = 0
+
+    run_async(bot._remover_fila(interaction, 'empresa_a'))
+
+    assert order == [['defer']]  # o defer veio antes da leitura do Firestore
+    assert interaction.events == ['defer', ('send', '<@42> empresa removida da fila', False), 'delete']
+    assert queue['cancelled'] == ['j1']
+
+
+def test_remover_fila_sem_empresa_na_fila(bot, queue):
+    interaction = FakeInteraction()
+    bot.time_to_delete = 0
+
+    run_async(bot._remover_fila(interaction, 'empresa_x'))
+
+    assert interaction.events[1] == ('send', '<@42> nenhuma empresa removida da fila', False)
+
+
+def test_ver_fila_responde_antes_de_ler_a_fila(bot, queue):
+    queue['jobs'] = [['j1', job('EMPRESA_A')]]
+    interaction = FakeInteraction()
+
+    run_async(bot._ver_fila(interaction))
+
+    assert interaction.events == ['defer', ('send', None, True)]
+
+
+def test_ver_fila_vazia_responde_pelo_followup(bot, queue):
+    interaction = FakeInteraction()
+
+    run_async(bot._ver_fila(interaction))
+
+    assert interaction.events == ['defer', ('send', '<@42> não há solicitações na fila', False)]
+
+
 # --- webhook ------------------------------------------------------------------------
 
 @pytest.fixture

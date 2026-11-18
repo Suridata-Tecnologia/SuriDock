@@ -239,31 +239,44 @@ class DiscordBot:
         return cancelled
 
 
+    # O Discord exige uma resposta em até 3 s. Ler a fila no Firestore (centenas de jobs)
+    # demora mais que isso, e o usuário via "O aplicativo não respondeu". Por isso os
+    # comandos respondem na hora (defer) e fazem a leitura fora do loop do bot.
+    async def _ver_fila(self, interaction):
+        await interaction.response.defer()
+        embed_list = await asyncio.to_thread(self._set_embed_from_queue)
+        if not embed_list:
+            await interaction.followup.send(f'{interaction.user.mention} não há solicitações na fila', ephemeral=False)
+        else:
+            view = PageLayout(embed_list, interaction.user.id)
+            await interaction.followup.send(embed=embed_list[0], view=view)
+
+
+    async def _remover_fila(self, interaction, empresas):
+        await interaction.response.defer()
+        cancelled = await asyncio.to_thread(self._cancel_company_from_firestore, empresas)
+
+        if cancelled:
+            await interaction.followup.send(f'{interaction.user.mention} empresa removida da fila', ephemeral=False)
+        else:
+            await interaction.followup.send(f'{interaction.user.mention} nenhuma empresa removida da fila', ephemeral=False)
+
+        await asyncio.sleep(self.time_to_delete)
+        await interaction.delete_original_response()
+
+
     # ----------------------------------------------------------
     # Slash commands do Discord
     # ----------------------------------------------------------
     def _register_commands(self):
         @self.tree.command(name="ver_fila", description="Retorna uma lista de empresas em processamento e aguardando na fila.")
         async def ver_fila(interaction: discord.Interaction):
-            embed_list = self._set_embed_from_queue()
-            if not embed_list:
-                await interaction.response.send_message(f'{interaction.user.mention} não há solicitações na fila', ephemeral=False)
-            else:
-                view = PageLayout(embed_list, interaction.user.id)
-                await interaction.response.send_message(embed=embed_list[0], view=view)
+            await self._ver_fila(interaction)
 
 
         @self.tree.command(name="remover_fila", description="Remove empresas da fila de processos")
         async def remover_fila(interaction: discord.Interaction, empresas: str):
-            cancelled = self._cancel_company_from_firestore(empresas)
-
-            if cancelled:
-                await interaction.response.send_message(f'{interaction.user.mention} empresa removida da fila', ephemeral=False)
-            else:
-                await interaction.response.send_message(f'{interaction.user.mention} nenhuma empresa removida da fila', ephemeral=False)
-            
-            await asyncio.sleep(self.time_to_delete)
-            await interaction.delete_original_response()
+            await self._remover_fila(interaction, empresas)
 
 
         @self.tree.command(name="relatorioppt", description="Gera o relatório pelo qlik")

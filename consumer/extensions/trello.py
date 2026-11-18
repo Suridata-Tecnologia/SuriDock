@@ -72,3 +72,22 @@ class Trello():
 
     def run(self):
         self.__trello_control()
+
+
+def get_card_list_name(card_id):
+    """Nome da lista em que o card está agora, ou None se não der para consultar."""
+    url = f'https://api.trello.com/1/cards/{card_id}/list'
+    params = {
+        'fields': 'name',
+        'key': os.getenv('SURI_TRELLO_API_KEY'),
+        'token': os.getenv('SURI_TRELLO_API_TOKEN'),
+    }
+    try:
+        resp = requests.get(url, params=params, timeout=30)
+        if resp.status_code != 200:
+            logger.error(f'Erro ao consultar a lista do card {card_id}: {resp.status_code}')
+            return None
+        return resp.json().get('name')
+    except Exception as error:
+        logger.error(f'Erro ao consultar a lista do card {card_id}: {error}')
+        return None

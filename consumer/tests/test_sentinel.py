@@ -89,6 +89,15 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr(sentinel, 'process_company', lambda driver: state['qlik_ok'])
     monkeypatch.setattr(sentinel, 'GoogleStorage', FakeGoogleStorage)
     monkeypatch.setattr(sentinel, 'Trello', FakeTrello)
+    # lista atual do card no Trello: None = sem resposta do Trello (segue como antes);
+    # uma lista = respostas em ordem; a última se repete
+    state['card_lists'] = None
+    def fake_card_list(card_id):
+        lists = state['card_lists']
+        if not lists:
+            return None
+        return lists.pop(0) if len(lists) > 1 else lists[0]
+    monkeypatch.setattr(sentinel, 'get_card_list_name', fake_card_list)
     monkeypatch.setattr(sentinel, 'SuridataApi', FakeSuridataApi)
     monkeypatch.setattr(sentinel, 'publish_message_discord', lambda data: state['discord'].append(data))
     monkeypatch.setattr(sentinel, 'datetime', FixedDatetime)
@@ -246,3 +255,61 @@ def test_mensagens_do_discord_vao_para_o_canal_sentinel(env):
 
     assert {message['discord_channel'] for message in env['discord']} == {'sentinel'}
     assert [message['progress'] for message in env['discord']] == [0, 20, 40, 60, 80, 100]
+
+
+# --- card movido à mão (ex.: para "Operação: Finalizados") --------------------
+
+def test_card_tirado_da_fila_nao_roda_nem_volta_para_processamento(env):
+    env['card_lists'] = ['Operação: Finalizados']
+
+    assert env['build']().run() is True
+
+    assert env['trello'] == []
+    assert env['edits'] == []
+    assert env['navigations'] == []
+    assert env['discord'][-1]['status'] == 'pending'
+    assert 'Operação: Finalizados' in env['discord'][-1]['stage']
+
+
+@pytest.mark.parametrize('lista', ['Operação: Aguardando Processamento', CARD_PROCESSING, CARD_ERRORS])
+def test_card_nas_listas_da_fila_roda_normalmente(env, lista):
+    env['add_validation']('EMPRESA_TESTE.csv')
+    env['card_lists'] = [lista, CARD_PROCESSING]
+
+    assert env['build']().run() is True
+
+    assert cards(env) == [CARD_PROCESSING, CARD_VALIDATION]
+
+
+def test_card_movido_durante_o_processamento_nao_vai_para_validacao(env):
+    env['add_validation']('EMPRESA_TESTE.csv')
+    env['card_lists'] = [CARD_PROCESSING, 'Operação: Finalizados']
+
+    env['build']().run()
+
+    assert cards(env) == [CARD_PROCESSING]
+
+
+def test_card_movido_durante_o_processamento_nao_vai_para_erros(env):
+    env['qlik_ok'] = False
+    env['card_lists'] = [CARD_PROCESSING, 'Operação: Finalizados']
+
+    assert env['build']().run() is False
+
+    assert cards(env) == [CARD_PROCESSING]
+
+
+def test_sem_resposta_do_trello_segue_como_antes(env):
+    env['add_validation']('EMPRESA_TESTE.csv')
+    env['card_lists'] = None
+
+    assert env['build']().run() is True
+
+    assert cards(env) == [CARD_PROCESSING, CARD_VALIDATION]
+
+
+def test_pedido_sem_card_do_trello_nao_consulta_o_trello(env, monkeypatch):
+    env['add_validation']('EMPRESA_TESTE.csv')
+    monkeypatch.setattr(sentinel, 'get_card_list_name', lambda card_id: pytest.fail('não devia consultar o Trello'))
+
+    assert env['build'](trello_card_id=None).run() is True
