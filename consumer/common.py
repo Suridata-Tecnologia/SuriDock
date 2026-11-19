@@ -10,7 +10,7 @@ from dotenv                                     import load_dotenv
 from shutil                                     import copy, move
 from base64                                     import b64encode
 from selenium                                   import webdriver
-from database                                   import Database
+from database                                   import Database, COMPANY_ACTIVE_FIRST
 from datetime                                   import datetime
 from zoneinfo                                   import ZoneInfo
 from selenium.webdriver.chrome.options          import Options
@@ -373,7 +373,8 @@ def has_gestao_pos(drive_folder):
             table_name='companies',
             left_on='operator_id',
             condition=f'companies.drive_path = "{drive_folder}"',
-            columns=['companies.suridata_product']
+            columns=['companies.suridata_product'],
+            order_by=COMPANY_ACTIVE_FIRST
         )
 
         if len(data) == 0:
@@ -672,7 +673,11 @@ def wait_until_download_finish(download_path, driver):
 
 
 def get_url_fivepage(drive_folder):
-    data = Database().find_pretty_name_and_operator_name(drive_folder)[0]
+    rows = Database().find_pretty_name_and_operator_name(drive_folder)
+    if len(rows) > 1:
+        cadastros = ', '.join(f'{row["dashboard_param"]} (id {row["id"]}, status {row.get("status")})' for row in rows)
+        logger.warning(f'Pasta {drive_folder} tem {len(rows)} cadastros no portal: {cadastros}. Usando {rows[0]["dashboard_param"]}')
+    data = rows[0]
 
     base_dashboard_param = b64encode(bytes(str(data['dashboard_param']), 'utf-8')).decode()
     base_company_id      = b64encode(bytes(str(data['id']), 'utf-8')).decode()

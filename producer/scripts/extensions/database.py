@@ -9,6 +9,14 @@ SURIDB_PASSWORD = os.getenv('SURIDB_PASSWORD')
 SURIDB_DATABASE = os.getenv('SURIDB_DATABASE')
 SURIDB_PORT     = os.getenv('SURIDB_PORT')
 
+# companies.status: 0 = Ativo, 1 = Inativo, 2 = Implantação, 3 = Histórico.
+# Mesma ordem do consumer (consumer/database.py): cadastro ativo primeiro, inativo por último.
+COMPANY_ACTIVE_FIRST = (
+    'COALESCE(companies.status, 0) = 1, '
+    'COALESCE(companies.status, 0) <> 0, '
+    'companies.id DESC'
+)
+
 
 
 class Database():
@@ -26,7 +34,8 @@ class Database():
         data = self.find_all(
             table_name='companies',
             condition=f'companies.drive_path = "{company_name}"',
-            columns=['language_id']
+            columns=['language_id'],
+            order_by=COMPANY_ACTIVE_FIRST
         )
 
         if data:
@@ -39,7 +48,7 @@ class Database():
         return False
     
     
-    def find_all(self, table_name, condition=None, columns=[], related_table=None, left_on='id', right_on='id'):
+    def find_all(self, table_name, condition=None, columns=[], related_table=None, left_on='id', right_on='id', order_by=None):
         if not isinstance(columns, list):
             raise Exception('Columns precisa ser uma lista de colunas.')
 
@@ -50,6 +59,7 @@ class Database():
             FROM {table_name}
             {f'JOIN {related_table} ON {table_name}.{left_on} = {related_table}.{right_on}' if related_table else ''}
             {f"WHERE {condition}" if condition else ''}
+            {f"ORDER BY {order_by}" if order_by else ''}
         '''
         
         cursor.execute(query)
